@@ -12028,7 +12028,7 @@
 				)
 			)
 		)
-		(property "Value" "1uH"
+		(property "Value" "3.3uH"
 			(at 104.14 68.58 90)
 			(effects
 				(font
@@ -12036,7 +12036,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_SMD:L_Taiyo-Yuden_MD-3030"
+		(property "Footprint" "Inductor_SMD:L_Chilisin_BMRx00040412"
 			(at 104.14 71.12 0)
 			(effects
 				(font
