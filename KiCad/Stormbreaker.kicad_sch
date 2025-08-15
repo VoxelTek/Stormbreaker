@@ -4604,24 +4604,23 @@
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
-			(property "Reference" "SW"
-				(at 1.27 2.54 0)
+			(property "Reference" "SW1"
+				(at 0 7.62 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
-					(justify left)
 				)
 			)
 			(property "Value" "SW_Push"
-				(at 0 -1.524 0)
+				(at 0 5.08 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Footprint" ""
+			(property "Footprint" "Button_Switch_SMD:SW_Push_1P1T-MP_NO_Horizontal_Alps_SKRTLAE010"
 				(at 0 5.08 0)
 				(effects
 					(font
@@ -4640,6 +4639,15 @@
 				)
 			)
 			(property "Description" "Push button switch, generic, two pins"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Mouser" "https://au.mouser.com/ProductDetail/Panasonic/EVQ-P4KB3Q?qs=0aNVN3t2tDvGc%252BviO4RgAQ%3D%3D"
 				(at 0 0 0)
 				(effects
 					(font
@@ -4733,6 +4741,27 @@
 						)
 					)
 					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "SW_Push_1_1"
+				(pin passive line
+					(at 5.08 0 180)
+					(length 2.54)
+					(hide yes)
+					(name "MP"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "MP"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -9386,7 +9415,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Button_Switch_SMD:Panasonic_EVQPUK_EVQPUB"
+		(property "Footprint" "Button_Switch_SMD:SW_Push_1P1T-MP_NO_Horizontal_Alps_SKRTLAE010"
 			(at 224.79 69.85 0)
 			(effects
 				(font
@@ -9413,7 +9442,7 @@
 				(hide yes)
 			)
 		)
-		(property "Mouser" "https://au.mouser.com/ProductDetail/Panasonic/EVQ-P4KB3Q?qs=0aNVN3t2tDvGc%252BviO4RgAQ%3D%3D"
+		(property "Mouser" "https://www.digikey.com.au/en/products/detail/alps-alpine/SKRTLAE010/19529044?s=N4IgTCBcDaIMoGkBKAVAMgQQKIAYCMOIAugL5A"
 			(at 224.79 74.93 0)
 			(effects
 				(font
@@ -9427,6 +9456,9 @@
 		)
 		(pin "1"
 			(uuid "ed5c0a0e-9c17-46da-978b-aa5f135a4949")
+		)
+		(pin "MP"
+			(uuid "4d30610b-afff-4052-bc6e-7a4fa5658fa3")
 		)
 		(instances
 			(project ""
