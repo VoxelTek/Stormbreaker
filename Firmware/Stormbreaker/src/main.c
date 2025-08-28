@@ -39,7 +39,7 @@ uint8_t battCharge;
 uint8_t battVolt = 0b1000101; //~3.7V
 const uint8_t minBattVolt = 0b0010011; //~2.7V
 uint8_t battVoltLevels[5] = {0b01011111, 0b1000101, 0b0100010, 0b0011000, 0b0010011}; // 4.2, 3.7, 3.0, 2.8, 2.7
-uint8_t battChrgLevels[9] = {minBattVolt, 0x1c, 0x26, 0x30, 0x39, 0x43, 0x4c, 0x56, 0x5f};
+uint8_t battChrgLevels[9] = {0x13, 0x1c, 0x26, 0x30, 0x39, 0x43, 0x4c, 0x56, 0x5f};
 uint8_t pwrErrorStatus = 0x00;
 uint8_t chargeStatus = 0b00;
 const uint8_t bqAddr = 0x6A;
@@ -553,7 +553,7 @@ void battChargeStatus() {
     if ((battVolt >= battChrgLevels[i]) && (battVolt < battChrgLevels[i+1])) {
       tmp = i + ((battVolt - battChrgLevels[i])/ (battChrgLevels[i+1] - battChrgLevels[i]));
       tmp *= 0x20;
-      battCharge = int(tmp);
+      battCharge = (int)tmp;
       return;
     }
   }
