@@ -8,8 +8,7 @@
 
 #include <util/delay.h>
 
-//#include <tinyNeoPixel.h>
-
+#include "led.h"
 #include "i2c_target.h"
 
 #include "gpio.h"
@@ -23,7 +22,7 @@
 #define ADDR_CHRGVOLTAGE 0x04
 #define ADDR_FANSPEED 0x05
 
-uint8_t ver = 0x01; // v0.1 (ver / 10)
+const uint8_t ver = 0x01; // v0.1 (ver / 10)
 
 //BBI2C bbi2c;
 
@@ -35,6 +34,7 @@ bool triggeredSoftShutdown = false; // Did we trigger the soft shutdown?
 
 bool isOverTemp = false;
 
+//Much of this is specific to the BQ chip I'm using, see the datasheet for more info.
 uint8_t battCharge;
 uint8_t battVolt = 0b1000101; //~3.7V
 const uint8_t minBattVolt = 0b0010011; //~2.7V
@@ -44,14 +44,6 @@ uint8_t pwrErrorStatus = 0x00;
 uint8_t chargeStatus = 0b00;
 const uint8_t bqAddr = 0x6A;
 uint8_t maxCurrent = 0x3F; // 3.25A
-//byte chrgCurrent = 0b1000010; // 4224mA
-
-/*
-byte chrgCurrent = EEPROM.read(ADDR_CHRGCURRENT);
-byte preCurrent = EEPROM.read(ADDR_PRECURRENT);
-byte termCurrent = EEPROM.read(ADDR_TERMCURRENT);
-byte chrgVoltage = EEPROM.read(ADDR_CHRGVOLTAGE);
-*/
 
 uint8_t chrgCurrent;
 uint8_t preCurrent;
@@ -73,7 +65,7 @@ int I2CWriteRegister(BBI2C *pI2C, unsigned char iAddr, unsigned char reg, unsign
 }
 */
 
-void firstTimeCheck() {
+void getEEPROM() {
   if (eeprom_read_byte(ADDR_VER) == 0) { // Check if there's no data in the EEPROM
     chrgCurrent = 0b1000010; // 4224mA
     preCurrent = 0b0001;
@@ -185,7 +177,7 @@ void setup() {
   pinMode(PIN_PC1, OUTPUT);
   */
 
-  firstTimeCheck(); // Get settings from EEPROM
+  getEEPROM(); // Get settings from EEPROM
 
   //battChrgLevels = {chrgVoltage, 0x56, 0x4c, 0x43, 0x39, 0x30, 0x26, 0x1c};
 
@@ -204,6 +196,7 @@ void setup() {
   gpio_output(SOFT_PWR);
   gpio_set_low(SOFT_PWR);
 
+  // TODO: Get fan PWM 
   gpio_output(FAN);
   //gpio_config(FAN, 0);
   gpio_set_low(FAN);
@@ -211,13 +204,6 @@ void setup() {
 
   gpio_output(PWR_ON);
   gpio_set_high(PWR_ON); // Makes sure console is off
-
-  /*
-  attachInterrupt(digitalPinToInterrupt(BUTTON), powerButton, LOW);
-  attachInterrupt(digitalPinToInterrupt(SOFT_SHUT), softShutdown, RISING);
-  attachInterrupt(digitalPinToInterrupt(CHRG_STAT), chargingStatus, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(TEMP_ALERT), overTemp, LOW);
-  */
   
   setFan(false); // Turn off fan
 
@@ -227,11 +213,6 @@ void setup() {
   bbi2c.iSDA = SDA2;
   bbi2c.iSCL = SCL2;
   I2CInit(&bbi2c, 0xFFFF);
-  
-
-  Wire.onReceive(receiveDataWire);
-  Wire.onRequest(transmitDataWire);
-  Wire.begin(STORM_I2C);
   */
 
   i2c_target_init(STORM_I2C, handle_register_read, handle_register_write);
@@ -437,7 +418,7 @@ void consoleOn() {
   gpio_set_low(PWR_ON); // Activate MOSFET
   isPowered = true;
 
-  setFan(true); // Enable fan,
+  setFan(true); // Enable fan
 
   monitorBatt();
 }

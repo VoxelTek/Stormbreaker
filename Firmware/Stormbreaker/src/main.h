@@ -26,7 +26,7 @@ void setup();
 void loop();
 
 //int I2CWriteRegister(BBI2C *pI2C, unsigned char iAddr, unsigned char reg, unsigned char value);
-void firstTimeCheck();
+void getEEPROM();
 void overTemp();
 void powerButton();
 void triggerShutdown();
