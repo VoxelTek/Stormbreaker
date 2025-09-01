@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 // LED layout configuration
-#define LED_COUNT 3 // Number of LEDs in the chain
+#define LED_COUNT 2 // Number of LEDs in the chain
 #define LED_BYTES 3 // Number of bytes per LED (eg. 3 for RGB)
 
 // LED timing configuration (values in microseconds)
@@ -24,14 +24,23 @@
 #define LED_LAT 50
 
 // LED data pin configuration
-#define LED_PORT PORTC
-#define LED_PIN  2
+#define LED_PORT PORTA
+#define LED_PIN  5
 
 // Initialize the LED data pin
 void led_init();
 
 // Set the color of an LED in the buffer
 void led_set_color(uint8_t index, uint32_t color);
+
+// Set the colour of all LEDs
+void led_set_all(uint32_t color);
+
+// Turns off an LED
+void led_clear(uint8_t index);
+
+// Turns off all LEDs
+void led_clear_all();
 
 // Refresh the LEDs with the current buffer
 void led_refresh();

@@ -35,6 +35,8 @@ bool triggeredSoftShutdown = false; // Did we trigger the soft shutdown?
 bool isOverTemp = false;
 
 //Much of this is specific to the BQ chip I'm using, see the datasheet for more info.
+const uint8_t bqAddr = 0x6A;
+
 uint8_t battCharge;
 uint8_t battVolt = 0b1000101; //~3.7V
 const uint8_t minBattVolt = 0b0010011; //~2.7V
@@ -42,7 +44,6 @@ uint8_t battVoltLevels[5] = {0b01011111, 0b1000101, 0b0100010, 0b0011000, 0b0010
 uint8_t battChrgLevels[9] = {0x13, 0x1c, 0x26, 0x30, 0x39, 0x43, 0x4c, 0x56, 0x5f};
 uint8_t pwrErrorStatus = 0x00;
 uint8_t chargeStatus = 0b00;
-const uint8_t bqAddr = 0x6A;
 uint8_t maxCurrent = 0x3F; // 3.25A
 
 uint8_t chrgCurrent;
@@ -85,25 +86,18 @@ void getEEPROM() {
 }
 
 int handle_register_read(uint8_t reg_addr, uint8_t *value) {
-  /*
-  if (numBytes == 0) return;
-
-  byte reg = Wire.read();
-
-  switch (reg) {
+  switch (reg_addr) {
     case 0x00: // Get version
-      requestedReg = &ver;
+      *value = ver;
     break;
 
     case 0x02:
       applyChanges(); // Apply and store current settings
-      isRequesting = false;
-      Wire.read();
       return;
     break;
 
     case 0x04:
-      requestedReg = &fanSpeed;
+      *value = fanSpeed;
     break;
 
     case 0x0B:
@@ -112,55 +106,70 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
     break;
 
     case 0x10:
-      requestedReg = &chrgCurrent;
+      *value = chrgCurrent;
     break;
 
     case 0x11:
-      requestedReg = &termCurrent;
+      *value = termCurrent;
     break;
 
     case 0x12:
-      requestedReg = &preCurrent;
+      *value = preCurrent;
     break;
 
     case 0x13:
-      requestedReg = &chrgVoltage;
+      *value = chrgVoltage;
     break;
 
     case 0x15:
-      requestedReg = &chargeStatus;
+      battChargeStatus();
+      *value = chargeStatus;
     break;
 
     case 0x24:
       battChargeStatus();
-      requestedReg = &battCharge;
+      *value = battCharge;
     break;
 
     case 0x26:
       getBattVoltage();
-      requestedReg = &battVolt;
+      *value = battVolt;
     break;
   }
-
-  if (!Wire.available()) {
-    isRequesting = true;
-    return;
-  }
-  else {
-    isRequesting = false;
-    *requestedReg = Wire.read();
-  }
-  */
 }
 
 int handle_register_write(uint8_t reg_addr, uint8_t value) {
-  /*
-  if (!isRequesting) {
-    return;
+  switch (reg_addr) {
+    case 0x02:
+      applyChanges(); // Apply and store current settings
+      return;
+    break;
+
+    case 0x04:
+      fanSpeed = value;
+    break;
+
+    case 0x0B:
+      enableShipping(); // Don't need to bother doing anything, we'll be losing power soon anyway
+      _delay_ms(1000);
+    break;
+
+    case 0x10:
+      chrgCurrent = value;
+    break;
+
+    case 0x11:
+      termCurrent = value;
+    break;
+
+    case 0x12:
+      preCurrent = value;
+    break;
+
+    case 0x13:
+      chrgVoltage = value;
+    break;
   }
-  Wire.write(*requestedReg);
-  isRequesting = false;
-  */
 }
 
 void setup() {
@@ -178,8 +187,6 @@ void setup() {
   */
 
   getEEPROM(); // Get settings from EEPROM
-
-  //battChrgLevels = {chrgVoltage, 0x56, 0x4c, 0x43, 0x39, 0x30, 0x26, 0x1c};
 
   gpio_input(BUTTON);
   gpio_config(BUTTON, PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc);
@@ -262,7 +269,7 @@ void powerButton() { // Power button has been pressed
         // Check that either the battery is charged enough, or console is charging, 
         // AND make sure there's no over-temp issues
         // AND make sure there's no power errors
-          consoleOn(); // Voltage is high enough or currently charging, turn on console
+          consoleOn(); // Battery is charged enough or currently charging, turn on console
         }
         else {
           powerLED(5); // Flash red light, battery too low OR over temp
@@ -366,41 +373,41 @@ void powerLED(uint8_t mode) {
   */
   switch (mode) {
     case 0:
-      setLED(0, 0, 0, 0, false);
+      setLED(0x00, 0x00, 0x00, 0.0, false);
     break;
 
     case 1:
-      setLED(0, 255, 0, 128, true); // Green
+      setLED(0x00, 0xFF, 0x00, 0.5, true); // Green
     break;
 
     case 2:
-      setLED(255, 255, 0, 128, true); // Yellow
+      setLED(0xFF, 0xFF, 0x00, 0.5, true); // Yellow
     break;
 
     case 3:
-      setLED(255, 128, 0, 128, true); // Orange
+      setLED(0xFF, 0x80, 0x00, 0.5, true); // Orange
     break;
 
     case 4:
-      setLED(255, 0, 0, 128, true); // Red
+      setLED(0xFF, 0x00, 0x00, 0.5, true); // Red
     break;
 
     case 5:
       for (int i = 0; i < 5; i++) { // Flash red
-        setLED(255, 0, 0, 128, true);
+        setLED(0xFF, 0x00, 0x00, 0.5, true);
         _delay_ms(100);
-        setLED(0, 0, 0, 0, false);
+        setLED(0x00, 0x00, 0x00, 0.0, false);
         _delay_ms(100);
       }
       powerLED(0);
     break;
 
     case 6:
-      setLED(0, 0, 255, 64, true); // Dim blue
+      setLED(0x00, 0x00, 0xFF, 0.25, true); // Dim blue
     break;
 
     case 7:
-      setLED(255, 183, 197, 64, true); // Dim sakura pink
+      setLED(0xFF, 0xB7, 0xC5, 0.25, true); // Dim sakura pink
     break;
 
     default:
@@ -501,22 +508,17 @@ void getBattVoltage() {
 }
 
 
-void setLED(uint8_t r, uint8_t g, uint8_t b, uint8_t bright, bool enabled) {
+void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled) {
   if (!enabled) {
-    //pixels.clear();
+    led_clear_all();
   }
   else {
-    for (int i = 0; i < NUMPIXELS; i++) {
-
-      // pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
-      //pixels.setPixelColor(i, pixels.Color(r, g, b));
-      //pixels.setBrightness(bright);
-
-      //pixels.show(); // This sends the updated pixel color to the hardware.
-
-      _delay_ms(50); // Delay for a period of time (in milliseconds).
-
-    }
+    uint32_t color = 0x000000;
+    r = (uint8_t)(r * bright);
+    g = (uint8_t)(g * bright);
+    b = (uint8_t)(b * bright);
+    color = (g << 16) + (r << 8) + b;
+    led_set_all(color);
   }
 }
 
@@ -574,4 +576,25 @@ int main() {
     loop();
   }
   return 1;
+}
+
+ISR(PORTA_PORT_vect) {
+  if (gpio_read(BUTTON) == false) {
+    powerButton();
+  }
+  if (gpio_read(TEMP_ALERT) == false) {
+    overTemp();
+  }
+}
+
+ISR(PORTB_PORT_vect) {
+  if (gpio_read(SOFT_SHUT) == true) {
+    softShutdown();
+  }
+}
+
+ISR(PORTC_PORT_vect) {
+  if (gpio_read(CHRG_STAT) == true) {
+    chargingStatus();
+  }
 }

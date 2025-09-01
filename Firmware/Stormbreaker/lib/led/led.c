@@ -26,6 +26,23 @@ void led_set_color(uint8_t index, uint32_t color)
     }
 }
 
+void led_set_all(uint32_t color)
+{
+    for (uint8_t i = 0; i < LED_COUNT; i++) {
+        led_set_color(i, color);
+    }
+}
+
+void led_clear(uint8_t index)
+{
+    led_set_color(index, 0x000000);
+}
+
+void led_clear_all()
+{
+    led_set_all(0x000000);
+}
+
 void led_refresh()
 {
     // Disable interrupts while sending data
