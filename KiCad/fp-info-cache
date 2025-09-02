@@ -1,4 +1,4 @@
-24486623028291485
+24488379806620793
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -91181,6 +91181,13 @@ GCT_USB4080-03-A_REVA1
 0
 34
 25
+Stormbreaker
+L_PCMB053T
+Inductor, Susumu, PCMB053T, 4.85x4.7x2.8mm, (https://www.susumu.co.jp/common/pdf/usa_products_23.pdf), generated with kicad-footprint-generator gen_inductor.py
+Inductor power shielded susumu fxl
+0
+2
+2
 Stormbreaker
 SW_EVQ-P46B3M
 

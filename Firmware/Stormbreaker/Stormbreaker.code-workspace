@@ -11,7 +11,10 @@
 	"settings": {
 		"files.associations": {
 			"cstddef": "cpp",
-			"cstdint": "cpp"
+			"cstdint": "cpp",
+			"button.h": "c",
+			"cstdio": "c",
+			"format": "c"
 		}
 	}
 }

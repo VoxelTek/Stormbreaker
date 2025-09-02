@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include "gpio.h"
+#include "button.h"
 #include "i2c_target.h"
 
 static const gpio_t SDA2        = {&PORTC, 2};
@@ -14,6 +15,8 @@ static const gpio_t LED         = {&PORTA, 5};
 static const gpio_t PWR_ON      = {&PORTA, 1}; // Output
 static const gpio_t BUTTON      = {&PORTA, 2};
 
+struct button pwr_button;
+
 static const gpio_t TEMP_ALERT  = {&PORTA, 7};
 
 static const gpio_t SOFT_PWR    = {&PORTB, 3}; //Out to Wii
@@ -27,10 +30,11 @@ void loop();
 //int I2CWriteRegister(BBI2C *pI2C, unsigned char iAddr, unsigned char reg, unsigned char value);
 void getEEPROM();
 void overTemp();
-void powerButton();
+void buttonHold();
 void triggerShutdown();
 void softShutdown();
 void chargingStatus();
+void initFan();
 void setFan(bool active);
 void powerLED(uint8_t mode);
 void consoleOn();

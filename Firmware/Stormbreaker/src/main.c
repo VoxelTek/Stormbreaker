@@ -8,23 +8,28 @@
 
 #include <util/delay.h>
 
-#include "led.h"
+#include "aled.h"       // Include several of loopj's useful utility libraries
 #include "i2c_target.h"
-
+#include "button.h"
+#include "console.h"
+#include "rtc.h"
 #include "gpio.h"
+
+#define BAUD_RATE 115200
 
 #define STORM_I2C 0x50
 
 #define ADDR_VER 0x00
 #define ADDR_CHRGCURRENT 0x01
-#define ADDR_PRECURRENT 0x02
-#define ADDR_TERMCURRENT 0x03
-#define ADDR_CHRGVOLTAGE 0x04
-#define ADDR_FANSPEED 0x05
+#define ADDR_PRECURRENT 0x03
+#define ADDR_TERMCURRENT 0x05
+#define ADDR_CHRGVOLTAGE 0x07
+#define ADDR_FANSPEED 0x09
 
-const uint8_t ver = 0x01; // v0.1 (ver / 10)
+const uint8_t ver = 0x02; // v0.2 (ver / 10)
 
 //BBI2C bbi2c;
+// TODO: re-implement second I2C 
 
 bool isPowered = false; // Is the Wii powered?
 bool isCharging = false; // Is the BQ charging the batteries?
@@ -38,48 +43,36 @@ bool isOverTemp = false;
 const uint8_t bqAddr = 0x6A;
 
 uint8_t battCharge;
-uint8_t battVolt = 0b1000101; //~3.7V
-const uint8_t minBattVolt = 0b0010011; //~2.7V
-uint8_t battVoltLevels[5] = {0b01011111, 0b1000101, 0b0100010, 0b0011000, 0b0010011}; // 4.2, 3.7, 3.0, 2.8, 2.7
-uint8_t battChrgLevels[9] = {0x13, 0x1c, 0x26, 0x30, 0x39, 0x43, 0x4c, 0x56, 0x5f};
+uint16_t battVolt = 3700;
+const uint16_t minBattVolt  = 2700;
+uint16_t battVoltLevels[5] = {4200, 3700, 3000, 2800, 2700};
+uint16_t battChrgLevels[9] = {2684, 2864, 3064, 3264, 3444, 3644, 3824, 4024, 4204};
 uint8_t pwrErrorStatus = 0x00;
 uint8_t chargeStatus = 0b00;
-uint8_t maxCurrent = 0x3F; // 3.25A
+uint16_t maxCurrent = 3250;
 
-uint8_t chrgCurrent;
-uint8_t preCurrent;
-uint8_t termCurrent;
-uint8_t chrgVoltage;
+uint16_t chrgCurrent;
+uint16_t preCurrent;
+uint16_t termCurrent;
+uint16_t chrgVoltage;
 uint8_t fanSpeed;
 
 const bool ilimEnabled = false;
 
-//tinyNeoPixel pixels = tinyNeoPixel(NUMPIXELS, PIN_PA5, NEO_GRB);
-
-/*
-int I2CWriteRegister(BBI2C *pI2C, unsigned char iAddr, unsigned char reg, unsigned char value) {
-    unsigned char buffer[2];
-    buffer[0] = reg;   // Register address
-    buffer[1] = value; // Data to write
-
-    return I2CWrite(pI2C, iAddr, buffer, 2);
-}
-*/
-
 void getEEPROM() {
   if (eeprom_read_byte(ADDR_VER) == 0) { // Check if there's no data in the EEPROM
-    chrgCurrent = 0b1000010; // 4224mA
-    preCurrent = 0b0001;
-    termCurrent = 0b0011;
-    chrgVoltage = 0b010111;
-    fanSpeed = 0xFF;
+    chrgCurrent = 4096; // 4096mA
+    preCurrent = 128; // 128mA
+    termCurrent = 256; // 256mA
+    chrgVoltage = 4208; // 4.208V
+    fanSpeed = 0xFF; 
     writeToEEPROM(); 
   }
   else {
-    chrgCurrent = eeprom_read_byte(ADDR_CHRGCURRENT);
-    preCurrent = eeprom_read_byte(ADDR_PRECURRENT);
-    termCurrent = eeprom_read_byte(ADDR_TERMCURRENT);
-    chrgVoltage = eeprom_read_byte(ADDR_CHRGVOLTAGE);
+    chrgCurrent = eeprom_read_word(ADDR_CHRGCURRENT);
+    preCurrent = eeprom_read_word(ADDR_PRECURRENT);
+    termCurrent = eeprom_read_word(ADDR_TERMCURRENT);
+    chrgVoltage = eeprom_read_word(ADDR_CHRGVOLTAGE);
     fanSpeed = eeprom_read_byte(ADDR_FANSPEED);
   }
   eeprom_write_byte(ADDR_VER, ver);
@@ -93,7 +86,6 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
 
     case 0x02:
       applyChanges(); // Apply and store current settings
-      return;
     break;
 
     case 0x04:
@@ -142,7 +134,6 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
   switch (reg_addr) {
     case 0x02:
       applyChanges(); // Apply and store current settings
-      return;
     break;
 
     case 0x04:
@@ -173,18 +164,16 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
 }
 
 void setup() {
-  //power_adc_disable(); // We don't need the ATtiny ADC, turn it off
+  button_init(&pwr_button, &BUTTON.port, BUTTON.num, NULL, buttonHold);
+  rtc_init();
+  console_init(BAUD_RATE);
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // Set sleep to low power mode
   sleep_enable(); // Enable sleeping, don't activate sleep yet though
 
   // Set unused pins to outputs
-  /*
-  pinMode(PIN_PA3, OUTPUT);
-  pinMode(PIN_PA4, OUTPUT);
-  pinMode(PIN_PA6, OUTPUT);
-  pinMode(PIN_PB5, OUTPUT);
-  pinMode(PIN_PC1, OUTPUT);
-  */
+  PORTA.DIRSET |= (1 << 3) + (1 << 4) + (1 << 6);
+  PORTB.DIRSET |= (1 << 5);
+  PORTC.DIRSET |= (1 << 1);
 
   getEEPROM(); // Get settings from EEPROM
 
@@ -208,7 +197,6 @@ void setup() {
   //gpio_config(FAN, 0);
   gpio_set_low(FAN);
 
-
   gpio_output(PWR_ON);
   gpio_set_high(PWR_ON); // Makes sure console is off
   
@@ -224,12 +212,13 @@ void setup() {
 
   i2c_target_init(STORM_I2C, handle_register_read, handle_register_write);
 
-  //pixels.begin();
+  led_init();
 
   setupBQ();
 }
 
 void loop() {
+  button_update(&pwr_button, rtc_millis());
   if (isPowered) {
     monitorBatt();
     _delay_ms(500);
@@ -238,7 +227,8 @@ void loop() {
     chargingStatus();
     _delay_ms(500);
   }
-  else {
+  else if (gpio_read(BUTTON) == false) {
+    rtc_deinit();
     sleep_cpu(); // The console isn't on, nor is it charging. Enter sleep to save power.
   }
 }
@@ -255,32 +245,26 @@ void overTemp() {
   setFan(false); // disable cooling fan
 }
 
-void powerButton() { // Power button has been pressed
-  if (!buttonTriggered && gpio_read(BUTTON) == false) {
-    buttonTriggered = true; // Make sure other instances of this function don't run. They shouldn't, hopefully, but eh.
-    _delay_ms(1000); // Wait in order to prevent bouncing and accidental presses
-    if (gpio_read(BUTTON) == false) {
-      if (isPowered) {
-        triggerShutdown(); // Is it on? Turn it off.
-      }
-      else {
-        getBattVoltage();
-        if (((battVolt > minBattVolt) || isCharging) && !isOverTemp && (pwrErrorStatus == 0x00)) { 
-        // Check that either the battery is charged enough, or console is charging, 
-        // AND make sure there's no over-temp issues
-        // AND make sure there's no power errors
-          consoleOn(); // Battery is charged enough or currently charging, turn on console
-        }
-        else {
-          powerLED(5); // Flash red light, battery too low OR over temp
-        }
-      }
+
+void buttonHold() {
+  buttonTriggered = true;
+  if (isPowered) {
+    triggerShutdown(); // Is it on? Turn it off.
+  }
+  else {
+    getBattVoltage();
+    if (((battVolt > minBattVolt) || isCharging) && !isOverTemp && (pwrErrorStatus == 0x00)) { 
+    // Check that either the battery is charged enough, or console is charging, 
+    // AND make sure there's no over-temp issues
+    // AND make sure there's no power errors
+      consoleOn(); // Battery is charged enough or currently charging, turn on console
     }
-    while (gpio_read(BUTTON) == false) { // Wait for button to stop being pressed
-      _delay_ms(100);
+    else {
+      powerLED(5); // Flash red light, battery too low OR over temp OR misc power error
     }
-    _delay_ms(250); // Debounce protection...kinda
-    buttonTriggered = false;
+  }
+  while (pwr_button.button_state != BUTTON_RELEASED) {
+    button_update(&pwr_button, rtc_millis());
   }
 }
 
@@ -348,6 +332,10 @@ void chargingStatus() {
     }
   }
   _delay_ms(100);
+}
+
+void initFan() {
+  // TODO: PWM stuff
 }
 
 void setFan(bool active) {
@@ -452,7 +440,7 @@ void enableShipping() {
 
 void setupBQ() {
   /*REG00*/
-  unsigned char reg00 = ((maxCurrent) | (ilimEnabled << 6)); // Set max current and ILIM.
+  unsigned char reg00 = ((uint8_t)((maxCurrent - 100) / 50) | (ilimEnabled << 6)); // Set max current and ILIM.
   //I2CWriteRegister(&bbi2c, bqAddr, 0x00, reg00);
 
   /*REG02*/
@@ -467,23 +455,23 @@ void setupBQ() {
   //I2CWriteRegister(&bbi2c, bqAddr, 0x03, reg03);
 
   /*REG04*/
-  unsigned char reg04 = (0x00 | chrgCurrent); // Set fast charge current
+  unsigned char reg04 = (0x00 | (chrgCurrent / 64)); // Set fast charge current
   //I2CWriteRegister(&bbi2c, bqAddr, 0x04, reg04);
 
   /*REG05*/
-  unsigned char reg05 = ((preCurrent << 4) | (0b1111 & termCurrent)); // Set term charge current
+  unsigned char reg05 = ((((preCurrent - 64) / 64) << 4) | (0b1111 & ((termCurrent - 64) / 64))); // Set term charge current
   //I2CWriteRegister(&bbi2c, bqAddr, 0x05, reg05);
 
   /*REG06*/
-  unsigned char reg06 = (0b00000011 | (chrgVoltage << 2)); // Set max battery voltage
+  unsigned char reg06 = (0b00000011 | (((chrgVoltage - 3840) / 16) << 2)); // Set max battery voltage
   //I2CWriteRegister(&bbi2c, bqAddr, 0x06, reg06);
 }
 
 void writeToEEPROM() {
-  eeprom_write_byte(ADDR_CHRGCURRENT, chrgCurrent);
-  eeprom_write_byte(ADDR_PRECURRENT, preCurrent);
-  eeprom_write_byte(ADDR_TERMCURRENT, termCurrent);
-  eeprom_write_byte(ADDR_CHRGVOLTAGE, chrgVoltage);
+  eeprom_write_word(ADDR_CHRGCURRENT, chrgCurrent);
+  eeprom_write_word(ADDR_PRECURRENT, preCurrent);
+  eeprom_write_word(ADDR_TERMCURRENT, termCurrent);
+  eeprom_write_word(ADDR_CHRGVOLTAGE, chrgVoltage);
   eeprom_write_byte(ADDR_FANSPEED, fanSpeed);
 }
 
@@ -504,7 +492,7 @@ void getBattVoltage() {
   unsigned char adcRegStatus = 0;
   //I2CReadRegister(&bbi2c, bqAddr, 0x0E, &adcRegStatus, 0x8);
   adcRegStatus &= 0b1111111;
-  battVolt = adcRegStatus;
+  battVolt = (adcRegStatus * 20) + 2304;
 }
 
 
@@ -517,9 +505,10 @@ void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled) {
     r = (uint8_t)(r * bright);
     g = (uint8_t)(g * bright);
     b = (uint8_t)(b * bright);
-    color = (g << 16) + (r << 8) + b;
+    color = (g << 16) + (r << 8) + b; // WS2812 and compatible use GRB
     led_set_all(color);
   }
+  led_refresh();
 }
 
 void battChargeStatus() {
@@ -556,16 +545,16 @@ void monitorBatt() {
     powerLED(5); // Show flashing red for error
     return;
   }
-  if ((battVolt <= battVoltLevels[0]) && (battVolt > battVoltLevels[1])) {
+  if (battVolt > battVoltLevels[1]) {
     powerLED(1); // High charge
   }
-  else if ((battVolt <= battVoltLevels[1]) && (battVolt > battVoltLevels[2])) {
+  else if (battVolt > battVoltLevels[2]) {
     powerLED(2); // Medium charge
   }
-  else if ((battVolt <= battVoltLevels[2]) && (battVolt > battVoltLevels[3])) {
+  else if (battVolt > battVoltLevels[3]) {
     powerLED(3); // Low charge
   }
-  else if ((battVolt <= battVoltLevels[3]) && (battVolt > battVoltLevels[4])) {
+  else if (battVolt <= battVoltLevels[3]) {
     powerLED(4); // ABOUT TO RUN OUT
   }
 }
@@ -579,22 +568,24 @@ int main() {
 }
 
 ISR(PORTA_PORT_vect) {
-  if (gpio_read(BUTTON) == false) {
-    powerButton();
-  }
-  if (gpio_read(TEMP_ALERT) == false) {
+  rtc_init();
+  button_update(&pwr_button, rtc_millis());
+  if (gpio_read_intflag(TEMP_ALERT)) {
     overTemp();
   }
+  PORTA.INTFLAGS = 0xFF;
 }
 
 ISR(PORTB_PORT_vect) {
-  if (gpio_read(SOFT_SHUT) == true) {
+  if (gpio_read_intflag(SOFT_SHUT)) {
     softShutdown();
   }
+  PORTB.INTFLAGS = 0xFF;
 }
 
 ISR(PORTC_PORT_vect) {
-  if (gpio_read(CHRG_STAT) == true) {
+  if (gpio_read_intflag(CHRG_STAT)) {
     chargingStatus();
   }
+  PORTC.INTFLAGS = 0xFF;
 }
