@@ -78,7 +78,6 @@ void getEEPROM() {
 }
 
 bool i2c_bitbang_write(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    // TODO: write `len` bytes of `buf` to device with i2c addr `addr` to device register `reg` and return boolean result
     struct i2c_msg msg;
     msg.buf = buf;
     msg.len = len;
@@ -89,7 +88,6 @@ bool i2c_bitbang_write(uint16_t addr, uint8_t reg, void const* buf, size_t len, 
 }
 
 bool i2c_bitbang_read(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    // TODO: read `len` bytes into `buf` from device with i2c addr `addr` from device register `reg` and return boolean result
     if (i2c_read(addr, buf, len) == 0) {
       return true;
     }
@@ -101,7 +99,7 @@ bq25895_t bq = {
     .read = i2c_bitbang_read,
 };
 
-int handle_register_read(uint8_t reg_addr, uint8_t *value) {
+int handle_register_read(uint8_t reg_addr, uint8_t *value) {  // TODO: Fix to use uint8_t for values
   switch (reg_addr) {
     case 0x00: // Get version
       *value = ver;
@@ -150,11 +148,15 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
       getBattVoltage();
       *value = battVolt;
     break;
+
+    default:
+      value = 0x00; // Invalid register address, return all zeroes.
+    break;
   }
   return 0;
 }
 
-int handle_register_write(uint8_t reg_addr, uint8_t value) {
+int handle_register_write(uint8_t reg_addr, uint8_t value) {  // TODO: Fix to use uint8_t for values
   switch (reg_addr) {
     case 0x02:
       applyChanges(); // Apply and store current settings
@@ -184,8 +186,11 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
     case 0x13:
       chrgVoltage = value;
     break;
+
+    default:
+      // Invalid register address, do nothing
+    break;
   }
-  setupBQ();
   return 0;
 }
 
@@ -197,9 +202,9 @@ bool setup() {
   sleep_enable(); // Enable sleeping, don't activate sleep yet though
 
   // Set unused pins to outputs
-  PORTA.DIRSET |= (1 << 3) + (1 << 4) + (1 << 6);
-  PORTB.DIRSET |= (1 << 5);
-  PORTC.DIRSET |= (1 << 1);
+  PORTA.DIRSET |= (1 << 3) + (1 << 4) + (1 << 6); // PA3, PA4, PA6
+  PORTB.DIRSET |= (1 << 5);   // PB5
+  PORTC.DIRSET |= (1 << 1);   // PC1
 
   getEEPROM(); // Get settings from EEPROM
 
