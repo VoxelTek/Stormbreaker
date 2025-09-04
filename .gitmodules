@@ -1,0 +1,3 @@
+[submodule "Firmware/Stormbreaker/lib/bq25895"]
+	path = Firmware/Stormbreaker/lib/bq25895
+	url = https://github.com/VoxelTek/bq24292i

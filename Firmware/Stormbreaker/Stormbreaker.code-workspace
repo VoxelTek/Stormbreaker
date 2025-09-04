@@ -14,7 +14,8 @@
 			"cstdint": "cpp",
 			"button.h": "c",
 			"cstdio": "c",
-			"format": "c"
+			"format": "c",
+			"i2c_bitbang.h": "c"
 		}
 	}
 }

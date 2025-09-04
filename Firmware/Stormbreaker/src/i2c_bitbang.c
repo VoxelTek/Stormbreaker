@@ -1,26 +1,14 @@
 /*
- * I2C Wii bit-banging core.
+ * I2C bit-banging core.
  */
+#include "i2c_bitbang.h"
+#include "gpio.h"
 
+#include <util/delay.h>
 
-#include <gctypes.h>
-#include <ogc/lwp_watchdog.h>
-#include <ogc/machine/processor.h>
-
-#include "i2c.h"
-
-// Wii GPIO registers
-#define HW_GPIO_BASE    0xCD0000C0
-#define HW_GPIOB_OUT    (*((vu32*)(HW_GPIO_BASE + 0x00)))
-#define HW_GPIOB_DIR    (*((vu32*)(HW_GPIO_BASE + 0x04)))
-#define HW_GPIOB_IN     (*((vu32*)(HW_GPIO_BASE + 0x08)))
-
-// Wii GPIO pins
-#define GPIO_AVE_SCL    (1 << 14)
-#define GPIO_AVE_SDA    (1 << 15)
-
-// Convert nanoseconds to ticks, adjust for function call overhead, rise times
-#define NS_TO_TICKS(ticks) (nanosecs_to_ticks(ticks) - 18)
+// GPIO pins
+static const gpio_t PIN_SDA = {&PORTC, 2};
+static const gpio_t PIN_SCL = {&PORTC, 3};
 
 // Drive modes for SCL line
 enum { I2C_DRIVE_PUSH_PULL, I2C_DRIVE_OPEN_DRAIN };
@@ -29,11 +17,11 @@ enum { I2C_DRIVE_PUSH_PULL, I2C_DRIVE_OPEN_DRAIN };
 static bool configured = false;
 
 // Configured I2C timings (in ticks)
-static uint32_t delay; // Half SCL period
-static uint32_t half_delay; // Quarter SCL period
+#define delay 1250 // Half SCL period
+#define half_delay 625 // Quarter SCL period
 
 // The current drive mode of the SCL line
-// Default to push/pull since an unmodified Wii has no pull-up resistor on SCL
+// Defaults to push/pull
 static bool drive_mode = I2C_DRIVE_PUSH_PULL;
 
 // Set the state of the SCL line
@@ -42,20 +30,20 @@ static inline void i2c_set_scl(int state)
   if (state) {
     if (drive_mode == I2C_DRIVE_OPEN_DRAIN) {
       // Set as input, allow pull-up resistor to pull the line high
-      HW_GPIOB_DIR &= ~GPIO_AVE_SCL;
+      gpio_config(PIN_SCL, PORT_PULLUPEN_bm);
+      gpio_input(PIN_SCL);
 
       // Wait for the target to release the SCL line to support clock stretching
       // TODO: Add a timeout
-      while (!(HW_GPIOB_IN & GPIO_AVE_SCL));
+      while (!(gpio_read(PIN_SCL)));
     } else {
       // Set as output, and pull the line high
-      HW_GPIOB_OUT |= GPIO_AVE_SCL;
-      HW_GPIOB_DIR |= GPIO_AVE_SCL;
+      gpio_set_high(PIN_SCL);
+      gpio_output(PIN_SCL);
     }
   } else {
-    // Set as output, and pull the line low
-    HW_GPIOB_OUT &= ~GPIO_AVE_SCL;
-    HW_GPIOB_DIR |= GPIO_AVE_SCL;
+    gpio_set_low(PIN_SCL);
+    gpio_output(PIN_SCL);
   }
 }
 
@@ -64,11 +52,12 @@ static inline void i2c_set_sda(int state)
 {
   if (state) {
     // Set SDA as input, allow pull-up resistor to pull the line high
-    HW_GPIOB_DIR &= ~GPIO_AVE_SDA;
+    gpio_config(PIN_SDA, PORT_PULLUPEN_bm);
+    gpio_input(PIN_SDA);
   } else {
     // Set SDA low, and as an output
-    HW_GPIOB_OUT &= ~GPIO_AVE_SDA;
-    HW_GPIOB_DIR |= GPIO_AVE_SDA;
+    gpio_set_low(PIN_SDA);
+    gpio_output(PIN_SDA);
   }
 }
 
@@ -76,16 +65,19 @@ static inline void i2c_set_sda(int state)
 static inline bool i2c_get_sda()
 {
   // Set SDA as input and return the state
-  HW_GPIOB_DIR &= ~GPIO_AVE_SDA;
-  return HW_GPIOB_IN & GPIO_AVE_SDA;
+  gpio_input(PIN_SDA);
+  return gpio_read(PIN_SDA);
 }
 
 // Delay for a number of ticks
-static inline void i2c_delay(unsigned int ticks)
+#define i2c_delay(us) _delay_us(us)
+
+/*
+static inline void i2c_delay(double microseconds)
 {
-  uint32_t start = gettick();
-  while (gettick() - start < ticks);
+  _delay_us(microseconds);
 }
+*/
 
 // I2C start condition
 static inline void i2c_start()
@@ -262,16 +254,17 @@ static inline int i2c_bitbang_transfer(uint8_t addr, struct i2c_msg *msgs, uint8
 static bool i2c_is_open_drain()
 {
   // Store gpio directions
-  uint32_t dir = HW_GPIOB_DIR;
+  uint8_t dir = PIN_SCL.port->DIR;
 
   // Set SCL as input, wait for the line to settle
-  HW_GPIOB_DIR &= ~GPIO_AVE_SCL;
+  gpio_config(PIN_SCL, PORT_PULLUPEN_bm);
+  gpio_input(PIN_SCL);
   i2c_delay(half_delay);
 
   // Read the SCL line multiple times, if it is ever low, it is not open-drain
   bool open_drain = true;
   for (int i = 0; i < 100; i++) {
-    if (!(HW_GPIOB_IN & GPIO_AVE_SCL)) {
+    if (!(gpio_read(PIN_SCL))) {
       open_drain = false;
       break;
     }
@@ -280,7 +273,7 @@ static bool i2c_is_open_drain()
   }
 
   // Restore original gpio directions
-  HW_GPIOB_DIR = dir;
+  PIN_SCL.port->DIR = dir;
 
   return open_drain;
 }
@@ -288,23 +281,24 @@ static bool i2c_is_open_drain()
 int i2c_configure(uint8_t mode)
 {
   // Set the I2C timings
+  /*
   switch (mode) {
     case I2C_MODE_STANDARD: // 100 KHz
-      delay      = NS_TO_TICKS(5000);
-      half_delay = NS_TO_TICKS(2500);
+      delay      = 5000;
+      half_delay = 2500;
       break;
 
     case I2C_MODE_FAST: // 400 KHz
-      delay      = NS_TO_TICKS(1250);
-      half_delay = NS_TO_TICKS(625);
+      delay      = 1250;
+      half_delay = 625;
       break;
 
     default:
       return -I2C_ERR;
   }
+  */
 
   // Send a stop condition to ensure the SCL and SDA lines are high
-  // libogc's VIDEO_init() function may have left them low
   i2c_stop();
 
   // Enable open-drain mode if supported
@@ -325,13 +319,13 @@ int i2c_transfer(uint8_t addr, struct i2c_msg *msgs, uint8_t num_msgs)
 
   // Disable interrupts
   uint32_t level;
-  _CPU_ISR_Disable(level);
+  //_CPU_ISR_Disable(level);
 
   // Perform the transfer
   int result = i2c_bitbang_transfer(addr, msgs, num_msgs);
 
   // Re-enable interrupts
-  _CPU_ISR_Restore(level);
+  //_CPU_ISR_Restore(level);
 
   return result;
 }

@@ -9,11 +9,15 @@
 #include <util/delay.h>
 
 #include "aled.h"       // Include several of loopj's useful utility libraries
-#include "i2c_target.h"
+#include "i2c_target.h" // Some of these have been partially modified to suit my needs
 #include "button.h"
 #include "console.h"
 #include "rtc.h"
 #include "gpio.h"
+
+#include "i2c_bitbang.h"
+
+#include "bq25895.h"
 
 #define BAUD_RATE 115200
 
@@ -34,15 +38,15 @@ const uint8_t ver = 0x02; // v0.2 (ver / 10)
 bool isPowered = false; // Is the Wii powered?
 bool isCharging = false; // Is the BQ charging the batteries?
 
-bool buttonTriggered = false; // Has the button been triggered?
+//bool buttonTriggered = false; // Has the button been triggered?
 bool triggeredSoftShutdown = false; // Did we trigger the soft shutdown?
 
 bool isOverTemp = false;
 
 //Much of this is specific to the BQ chip I'm using, see the datasheet for more info.
-const uint8_t bqAddr = 0x6A;
+//const uint8_t bqAddr = 0x6A;
 
-uint8_t battCharge;
+uint8_t battCharge = 0x00; // 0x00-0xFF, representing 0-100% charge
 uint16_t battVolt = 3700;
 const uint16_t minBattVolt  = 2700;
 uint16_t battVoltLevels[5] = {4200, 3700, 3000, 2800, 2700};
@@ -51,22 +55,17 @@ uint8_t pwrErrorStatus = 0x00;
 uint8_t chargeStatus = 0b00;
 uint16_t maxCurrent = 3250;
 
-uint16_t chrgCurrent;
-uint16_t preCurrent;
-uint16_t termCurrent;
-uint16_t chrgVoltage;
-uint8_t fanSpeed;
+uint16_t chrgCurrent = 4096; // 4096mA
+uint16_t preCurrent = 128; // 128mA
+uint16_t termCurrent = 256; // 256mA
+uint16_t chrgVoltage = 4208; // 4.208V
+uint8_t fanSpeed = 0xFF; // 100% speed
 
 const bool ilimEnabled = false;
 
 void getEEPROM() {
   if (eeprom_read_byte(ADDR_VER) == 0) { // Check if there's no data in the EEPROM
-    chrgCurrent = 4096; // 4096mA
-    preCurrent = 128; // 128mA
-    termCurrent = 256; // 256mA
-    chrgVoltage = 4208; // 4.208V
-    fanSpeed = 0xFF; 
-    writeToEEPROM(); 
+    writeToEEPROM(); // Leave at defaults, write to EEPROM
   }
   else {
     chrgCurrent = eeprom_read_word(ADDR_CHRGCURRENT);
@@ -77,6 +76,30 @@ void getEEPROM() {
   }
   eeprom_write_byte(ADDR_VER, ver);
 }
+
+bool i2c_bitbang_write(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
+    // TODO: write `len` bytes of `buf` to device with i2c addr `addr` to device register `reg` and return boolean result
+    struct i2c_msg msg;
+    msg.buf = buf;
+    msg.len = len;
+    if (i2c_transfer(addr, &msg, 1) == 0) {
+      return true;
+    }
+    return false;
+}
+
+bool i2c_bitbang_read(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
+    // TODO: read `len` bytes into `buf` from device with i2c addr `addr` from device register `reg` and return boolean result
+    if (i2c_read(addr, buf, len) == 0) {
+      return true;
+    }
+    return false;
+}
+
+bq25895_t bq = {
+    .write = i2c_bitbang_write,
+    .read = i2c_bitbang_read,
+};
 
 int handle_register_read(uint8_t reg_addr, uint8_t *value) {
   switch (reg_addr) {
@@ -114,7 +137,7 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
     break;
 
     case 0x15:
-      battChargeStatus();
+      chargingStatus();
       *value = chargeStatus;
     break;
 
@@ -128,6 +151,7 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
       *value = battVolt;
     break;
   }
+  return 0;
 }
 
 int handle_register_write(uint8_t reg_addr, uint8_t value) {
@@ -161,6 +185,7 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
       chrgVoltage = value;
     break;
   }
+  return 0;
 }
 
 void setup() {
@@ -189,31 +214,25 @@ void setup() {
   gpio_input(SOFT_SHUT);
   gpio_config(SOFT_SHUT, PORT_ISC_RISING_gc);
 
-  gpio_output(SOFT_PWR);
   gpio_set_low(SOFT_PWR);
+  gpio_output(SOFT_PWR);
 
-  // TODO: Get fan PWM 
+  // TODO: Fan PWM 
   gpio_output(FAN);
   //gpio_config(FAN, 0);
   gpio_set_low(FAN);
 
-  gpio_output(PWR_ON);
   gpio_set_high(PWR_ON); // Makes sure console is off
+  gpio_output(PWR_ON);
   
-  setFan(false); // Turn off fan
-
-  /*
-  memset(&bbi2c, 0, sizeof(bbi2c));
-  bbi2c.bWire = false;
-  bbi2c.iSDA = SDA2;
-  bbi2c.iSCL = SCL2;
-  I2CInit(&bbi2c, 0xFFFF);
-  */
+  setFan(false, fanSpeed); // Turn off fan
 
   i2c_target_init(STORM_I2C, handle_register_read, handle_register_write);
 
   led_init();
 
+  i2c_configure(I2C_MODE_FAST);
+  bq25895_is_present(&bq);
   setupBQ();
 }
 
@@ -227,7 +246,7 @@ void loop() {
     chargingStatus();
     _delay_ms(500);
   }
-  else if (gpio_read(BUTTON) == false) {
+  else if (gpio_read(BUTTON) != false) {
     rtc_deinit();
     sleep_cpu(); // The console isn't on, nor is it charging. Enter sleep to save power.
   }
@@ -242,12 +261,11 @@ void overTemp() {
     _delay_ms(1000);
   }
   isOverTemp = false;
-  setFan(false); // disable cooling fan
+  setFan(false, fanSpeed); // disable cooling fan
 }
 
 
 void buttonHold() {
-  buttonTriggered = true;
   if (isPowered) {
     triggerShutdown(); // Is it on? Turn it off.
   }
@@ -319,7 +337,6 @@ void chargingStatus() {
     }
     else {
       powerLED(0); // Not on, not charging
-
     }
   }
   else {
@@ -338,9 +355,9 @@ void initFan() {
   // TODO: PWM stuff
 }
 
-void setFan(bool active) {
+void setFan(bool active, uint8_t speed) {
   if (active) {
-    //analogWrite(FAN, fanSpeed);
+    //analogWrite(FAN, speed);
   }
   else {
     gpio_set_low(FAN);
@@ -413,7 +430,7 @@ void consoleOn() {
   gpio_set_low(PWR_ON); // Activate MOSFET
   isPowered = true;
 
-  setFan(true); // Enable fan
+  setFan(true, fanSpeed); // Enable fan
 
   monitorBatt();
 }
@@ -427,7 +444,7 @@ void consoleOff() {
   gpio_set_high(PWR_ON); // Deactivate MOSFET
   isPowered = false;
 
-  setFan(false);
+  setFan(false, fanSpeed);
 
   monitorBatt();
 }
@@ -477,7 +494,7 @@ void writeToEEPROM() {
 
 void applyChanges() {
   writeToEEPROM();
-  setFan(isPowered);
+  setFan(isPowered, fanSpeed);
   setupBQ();
 }
 
@@ -512,7 +529,8 @@ void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled) {
 }
 
 void battChargeStatus() {
-  if (chargeStatus == 0b11) {
+  chargingStatus();
+  if (chargeStatus == 0b11) { // Fully-charged
     battCharge = 0xff;
     return;
   }
@@ -523,7 +541,7 @@ void battChargeStatus() {
 
   for (int i = 0; i < 8; i++) {
     if ((battVolt >= battChrgLevels[i]) && (battVolt < battChrgLevels[i+1])) {
-      tmp = i + ((battVolt - battChrgLevels[i])/ (battChrgLevels[i+1] - battChrgLevels[i]));
+      tmp = i + ((battVolt - battChrgLevels[i]) / (battChrgLevels[i+1] - battChrgLevels[i]));
       tmp *= 0x20;
       battCharge = (int)tmp;
       return;

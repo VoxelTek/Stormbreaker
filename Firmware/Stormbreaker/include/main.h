@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <stddef.h>
 #include "gpio.h"
 #include "button.h"
 #include "i2c_target.h"
@@ -35,7 +36,7 @@ void triggerShutdown();
 void softShutdown();
 void chargingStatus();
 void initFan();
-void setFan(bool active);
+void setFan(bool active, uint8_t speed);
 void powerLED(uint8_t mode);
 void consoleOn();
 void consoleOff();
@@ -46,6 +47,8 @@ void applyChanges();
 void getBattVoltage();
 int handle_register_read(uint8_t reg_addr, uint8_t *value);
 int handle_register_write(uint8_t reg_addr, uint8_t value);
+bool i2c_bitbang_write(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context);
+bool i2c_bitbang_read(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context);
 void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled);
 void battChargeStatus();
 void monitorBatt();
