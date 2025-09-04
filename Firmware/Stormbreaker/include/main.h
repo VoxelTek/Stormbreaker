@@ -25,7 +25,7 @@ static const gpio_t SOFT_SHUT   = {&PORTB, 4}; //In from Wii
 
 int main();
 
-void setup();
+bool setup();
 void loop();
 
 //int I2CWriteRegister(BBI2C *pI2C, unsigned char iAddr, unsigned char reg, unsigned char value);

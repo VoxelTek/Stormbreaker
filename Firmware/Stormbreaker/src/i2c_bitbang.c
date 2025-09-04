@@ -4,6 +4,8 @@
 #include "i2c_bitbang.h"
 #include "gpio.h"
 
+#include <avr/interrupt.h>
+#include <util/atomic.h>
 #include <util/delay.h>
 
 // GPIO pins
@@ -318,11 +320,14 @@ int i2c_transfer(uint8_t addr, struct i2c_msg *msgs, uint8_t num_msgs)
     return -I2C_ERR;
 
   // Disable interrupts
-  uint32_t level;
+  //uint32_t level;
   //_CPU_ISR_Disable(level);
 
   // Perform the transfer
-  int result = i2c_bitbang_transfer(addr, msgs, num_msgs);
+  int result;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    result = i2c_bitbang_transfer(addr, msgs, num_msgs);
+  }
 
   // Re-enable interrupts
   //_CPU_ISR_Restore(level);

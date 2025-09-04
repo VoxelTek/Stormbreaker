@@ -49,11 +49,11 @@ bool isOverTemp = false;
 uint8_t battCharge = 0x00; // 0x00-0xFF, representing 0-100% charge
 uint16_t battVolt = 3700;
 const uint16_t minBattVolt  = 2700;
-uint16_t battVoltLevels[5] = {4200, 3700, 3000, 2800, 2700};
-uint16_t battChrgLevels[9] = {2684, 2864, 3064, 3264, 3444, 3644, 3824, 4024, 4204};
-uint8_t pwrErrorStatus = 0x00;
-uint8_t chargeStatus = 0b00;
-uint16_t maxCurrent = 3250;
+const uint16_t maxInCurrent = 3250;
+const uint16_t battVoltLevels[5] = {4200, 3700, 3000, 2800, 2700};
+const uint16_t battChrgLevels[9] = {2684, 2864, 3064, 3264, 3444, 3644, 3824, 4024, 4204};
+bq25895_fault_t pwrErrorStatus = 0x00;
+bq25895_charge_state_t chargeStatus = 0x00;
 
 uint16_t chrgCurrent = 4096; // 4096mA
 uint16_t preCurrent = 128; // 128mA
@@ -185,10 +185,11 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
       chrgVoltage = value;
     break;
   }
+  setupBQ();
   return 0;
 }
 
-void setup() {
+bool setup() {
   button_init(&pwr_button, &BUTTON.port, BUTTON.num, NULL, buttonHold);
   rtc_init();
   console_init(BAUD_RATE);
@@ -232,8 +233,11 @@ void setup() {
   led_init();
 
   i2c_configure(I2C_MODE_FAST);
-  bq25895_is_present(&bq);
+  if (!bq25895_is_present(&bq)) {
+    return false;
+  }
   setupBQ();
+  return true;
 }
 
 void loop() {
@@ -312,25 +316,22 @@ void softShutdown() {
 }
 
 void chargingStatus() {
-  unsigned char chrgStat = 0x00;
-  //I2CReadRegister(&bbi2c, bqAddr, 0x0B, &chrgStat, 0x8);
-  chargeStatus = ((chrgStat & 0b00011000) >> 3);
-
-  unsigned char errorStat = 0x00;
-  //I2CReadRegister(&bbi2c, bqAddr, 0x0C, &errorStat, 0x8);
-  pwrErrorStatus = errorStat;
+  bq25895_is_charger_connected(&bq, &isCharging);
+  bq25895_get_charge_state(&bq, &chargeStatus);
+  bq25895_check_faults(&bq, &pwrErrorStatus);
   if (pwrErrorStatus != 0x00) { // Uh oh, *something* is wrong
     triggerShutdown();
-    if (pwrErrorStatus & (1 << 5)) { // oh jeez stuff is hot this is really bad
+    if (pwrErrorStatus & BQ_FAULT_THERM) { // oh jeez stuff is hot this is really bad
       overTemp();
       return;
     }
-    else if (pwrErrorStatus & (1 << 3)) { // ???? the battery is TOO charged????
+    else if (pwrErrorStatus & BQ_FAULT_BAT) { // ???? the battery is TOO charged????
       enableShipping();
+      return; // Unnecessary since the console's gonna power off anyway
     }
   }
 
-  if (chargeStatus == 0b00) {
+  if (chargeStatus == BQ_STATE_NOT_CHARGING) {
     isCharging = false;
     if (isPowered) {
       monitorBatt();
@@ -341,7 +342,7 @@ void chargingStatus() {
   }
   else {
     isCharging = true;
-    if (chargeStatus == 0b11) { // Finished charging
+    if (chargeStatus == BQ_STATE_TERMINATED) { // Finished charging
       powerLED(7);
     }
     else {
@@ -422,10 +423,7 @@ void powerLED(uint8_t mode) {
 }
 
 void consoleOn() {
-  /*REG02*/
-  unsigned char reg02 = (0b11111100); // Disable D+/D- detection and such
-  // Continuous battery voltage reading if console is on
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x02, reg02);
+  bq25895_set_adc_cont(&bq, true);
 
   gpio_set_low(PWR_ON); // Activate MOSFET
   isPowered = true;
@@ -436,10 +434,7 @@ void consoleOn() {
 }
 
 void consoleOff() {
-  /*REG02*/
-  unsigned char reg02 = (0b00111100); // Disable D+/D- detection and such
-  // Disable continuous battery voltage reading
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x02, reg02);
+  bq25895_set_adc_cont(&bq, false);
 
   gpio_set_high(PWR_ON); // Deactivate MOSFET
   isPowered = false;
@@ -450,38 +445,22 @@ void consoleOff() {
 }
 
 void enableShipping() {
-  /*REG09*/
-  unsigned char reg09 = (1 << 5); // Enable shipping mode
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x09, reg09);
+  bq25895_set_batfet_enabled(&bq, false);
 }
 
 void setupBQ() {
-  /*REG00*/
-  unsigned char reg00 = ((uint8_t)((maxCurrent - 100) / 50) | (ilimEnabled << 6)); // Set max current and ILIM.
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x00, reg00);
-
-  /*REG02*/
-  unsigned char reg02 = (0b00111100); // Disable D+/D- detection and such
-  if (isPowered){
-    reg02 |= 0b11000000; // Continuous battery voltage reading if console is on
-  }
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x02, reg02);
-
-  /*REG03*/
-  unsigned char reg03 = (0b00011010); // Disable OTG
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x03, reg03);
-
-  /*REG04*/
-  unsigned char reg04 = (0x00 | (chrgCurrent / 64)); // Set fast charge current
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x04, reg04);
-
-  /*REG05*/
-  unsigned char reg05 = ((((preCurrent - 64) / 64) << 4) | (0b1111 & ((termCurrent - 64) / 64))); // Set term charge current
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x05, reg05);
-
-  /*REG06*/
-  unsigned char reg06 = (0b00000011 | (((chrgVoltage - 3840) / 16) << 2)); // Set max battery voltage
-  //I2CWriteRegister(&bbi2c, bqAddr, 0x06, reg06);
+  bq25895_set_iin_max(&bq, maxInCurrent);
+  bq25895_set_vsys_min(&bq, 3500);
+  bq25895_set_charge_config(&bq, BQ_CHG_CONFIG_ENABLE);
+  bq25895_set_charge_current(&bq, chrgCurrent);
+  bq25895_set_term_current(&bq, termCurrent);
+  bq25895_set_precharge_current(&bq, preCurrent);
+  bq25895_set_max_charge_voltage(&bq, chrgVoltage);
+  bq25895_set_recharge_offset(&bq, BQ_VRECHG_100MV);
+  bq25895_set_batlow_voltage(&bq, BQ_VBATLOW_3000MV);
+  bq25895_set_charge_termination(&bq, true);
+  bq25895_set_max_temp(&bq, BQ_MAX_TEMP_100C);
+  bq25895_set_adc_cont(&bq, isPowered);
 }
 
 void writeToEEPROM() {
@@ -501,15 +480,10 @@ void applyChanges() {
 
 void getBattVoltage() {
   if (!isPowered) {
-    unsigned char reg02 = (0b10111100); // Disable D+/D- detection and such
-    // Get single voltage reading
-    //I2CWriteRegister(&bbi2c, bqAddr, 0x02, reg02);
+    bq25895_trigger_adc_read(&bq);
     _delay_ms(200);
   }
-  unsigned char adcRegStatus = 0;
-  //I2CReadRegister(&bbi2c, bqAddr, 0x0E, &adcRegStatus, 0x8);
-  adcRegStatus &= 0b1111111;
-  battVolt = (adcRegStatus * 20) + 2304;
+  bq25895_get_adc_batt(&bq, &battVolt);
 }
 
 
@@ -578,7 +552,9 @@ void monitorBatt() {
 }
 
 int main() {
-  setup();
+  if (!setup()) {
+    return 0;
+  }
   while (1) {
     loop();
   }
