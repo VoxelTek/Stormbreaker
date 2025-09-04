@@ -32,9 +32,6 @@
 
 const uint8_t ver = 0x02; // v0.2 (ver / 10)
 
-//BBI2C bbi2c;
-// TODO: re-implement second I2C 
-
 bool isPowered = false; // Is the Wii powered?
 bool isCharging = false; // Is the BQ charging the batteries?
 
@@ -324,7 +321,7 @@ void chargingStatus() {
   bq25895_is_charger_connected(&bq, &isCharging);
   bq25895_get_charge_state(&bq, &chargeStatus);
   bq25895_check_faults(&bq, &pwrErrorStatus);
-  if (pwrErrorStatus != 0x00) { // Uh oh, *something* is wrong
+  if (pwrErrorStatus != BQ_FAULT_NONE) { // Uh oh, *something* is wrong
     triggerShutdown();
     if (pwrErrorStatus & BQ_FAULT_THERM) { // oh jeez stuff is hot this is really bad
       overTemp();
