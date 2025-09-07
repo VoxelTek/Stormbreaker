@@ -35,11 +35,11 @@
 //#define CMD_POT                 0x0E
 
 #define CMD_CHARGECURRENT       0x10
-#define CMD_TERMCURRENT         0x11
-#define CMD_PRECHARGECURRENT    0x12
-#define CMD_CHARGEVOLTAGE       0x13
+#define CMD_TERMCURRENT         0x12
+#define CMD_PRECHARGECURRENT    0x14
+#define CMD_CHARGEVOLTAGE       0x16
 //#define CMD_TREG                0x14
-#define CMD_CHARGESTATUS        0x15
+#define CMD_CHARGESTATUS        0x18
 
 //#define CMD_MAXRECONFIGURE      0x20
 //#define CMD_BATDESIGNCAP        0x21
@@ -187,7 +187,7 @@ namespace STORMBREAKER {
         lastTime = gettime();
 
         ret = i2c_read8(curPMSAddress, CMD_CHARGECURRENT, &error);
-        ret *= 64;
+        ret += i2c_read8(curPMSAddress, CMD_CHARGECURRENT + 1, &error) << 8;
         return ret;
     }
 
@@ -202,8 +202,7 @@ namespace STORMBREAKER {
         lastTime = gettime();
 
         ret = i2c_read8(curPMSAddress, CMD_TERMCURRENT, &error);
-        ret *= 64;
-        ret += 64;
+        ret += i2c_read8(curPMSAddress, CMD_TERMCURRENT + 1, &error) << 8;
         return ret;
     }
 
@@ -218,8 +217,7 @@ namespace STORMBREAKER {
         lastTime = gettime();
 
         ret = i2c_read8(curPMSAddress, CMD_PRECHARGECURRENT, &error);
-        ret *= 64;
-        ret += 64;
+        ret += i2c_read8(curPMSAddress, CMD_PRECHARGECURRENT + 1, &error) << 8;
         return ret;
     }
 
@@ -234,8 +232,7 @@ namespace STORMBREAKER {
         lastTime = gettime();
 
         ret = i2c_read8(curPMSAddress, CMD_CHARGEVOLTAGE, &error);
-        ret *= 16;
-        ret += 3840;
+        ret += i2c_read8(curPMSAddress, CMD_CHARGEVOLTAGE + 1, &error) << 8;
         return ret;
     }
     /*
@@ -342,7 +339,8 @@ namespace STORMBREAKER {
         lastTime = gettime();
 
         u16 vcell = i2c_read8(curPMSAddress, CMD_BATVOLTAGE, &error);
-        ret = ((vcell * 20) + 2304) / 1000.0f;
+        vcell += i2c_read8(curPMSAddress, CMD_BATVOLTAGE + 1, &error) << 8;
+        ret = (float)(vcell / 1000.0f);
         return ret;
     }
     /*
@@ -374,10 +372,10 @@ namespace STORMBREAKER {
     }
     */
 
-    u8 getVCellRaw() {
+    u16 getVCellRaw() {
         u8 error;
         static u64 lastTime = 0;
-        static u8 ret = 0;
+        static u16 ret = 0;
 
         if ((diff_msec(gettime(), lastTime) < PMS_POLLUPDATE_TIMEOUT) && lastTime) {
             return ret;
@@ -386,6 +384,7 @@ namespace STORMBREAKER {
         lastTime = gettime();
 
         ret = i2c_read8(curPMSAddress, CMD_BATVOLTAGE, &error);
+        ret += i2c_read8(curPMSAddress, CMD_BATVOLTAGE + 1, &error) << 8;
         return ret;
     }
     /*
@@ -485,30 +484,30 @@ namespace STORMBREAKER {
     */
     void setChargeCurrent(u16 v) {
         u8 error;
-        u8 chrgCurrent = (v / 64);
 
-        i2c_write8(curPMSAddress, CMD_CHARGECURRENT, chrgCurrent, &error);
+        i2c_write8(curPMSAddress, CMD_CHARGECURRENT, (v & 0x00FF), &error);
+        i2c_write8(curPMSAddress, CMD_CHARGECURRENT + 1, (v & 0xFF00) >> 8, &error);
     }
 
     void setTermCurrent(u16 v) {
         u8 error;
-        u8 termCurrent = (v - 64) / 64;
 
-        i2c_write8(curPMSAddress, CMD_TERMCURRENT, termCurrent, &error);
+        i2c_write8(curPMSAddress, CMD_TERMCURRENT, (v & 0x00FF), &error);
+        i2c_write8(curPMSAddress, CMD_TERMCURRENT + 1, (v & 0xFF00) >> 8, &error);
     }
 
     void setPreChargeCurrent(u16 v) {
         u8 error;
-        u8 preCurrent = (v - 64) / 64;
 
-        i2c_write8(curPMSAddress, CMD_PRECHARGECURRENT, preCurrent, &error);
+        i2c_write8(curPMSAddress, CMD_PRECHARGECURRENT, (v & 0x00FF), &error);
+        i2c_write8(curPMSAddress, CMD_PRECHARGECURRENT + 1, (v & 0xFF00) >> 8, &error);
     }
 
     void setChargeVoltage(u16 v) {
         u8 error;
-        u8 chrgVoltage = (v - 3840) / 16;
 
-        i2c_write8(curPMSAddress, CMD_CHARGEVOLTAGE, chrgVoltage, &error);
+        i2c_write8(curPMSAddress, CMD_CHARGEVOLTAGE, (v & 0x00FF), &error);
+        i2c_write8(curPMSAddress, CMD_CHARGEVOLTAGE + 1, (v & 0xFF00) >> 8, &error);
     }
     /*
     void setTREG(u8 v) {

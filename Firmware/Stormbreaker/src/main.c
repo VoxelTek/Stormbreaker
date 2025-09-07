@@ -96,7 +96,7 @@ bq25895_t bq = {
     .read = i2c_bitbang_read,
 };
 
-int handle_register_read(uint8_t reg_addr, uint8_t *value) {  // TODO: Fix to use uint8_t for values
+int handle_register_read(uint8_t reg_addr, uint8_t *value) {
   switch (reg_addr) {
     case 0x00: // Get version
       *value = ver;
@@ -116,22 +116,34 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {  // TODO: Fix to us
     break;
 
     case 0x10:
-      *value = chrgCurrent;
+      *value = chrgCurrent & 0xFF;
     break;
-
     case 0x11:
-      *value = termCurrent;
+      *value = chrgCurrent >> 8;
     break;
 
     case 0x12:
-      *value = preCurrent;
+      *value = termCurrent & 0xFF;
     break;
-
     case 0x13:
-      *value = chrgVoltage;
+      *value = termCurrent >> 8;
     break;
 
+    case 0x14:
+      *value = preCurrent & 0xFF;
+    break;
     case 0x15:
+      *value = preCurrent >> 8;
+    break;
+
+    case 0x16:
+      *value = chrgVoltage & 0xFF;
+    break;
+    case 0x17:
+      *value = chrgVoltage  >> 8;
+    break;
+
+    case 0x18:
       chargingStatus();
       *value = chargeStatus;
     break;
@@ -143,7 +155,10 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {  // TODO: Fix to us
 
     case 0x26:
       getBattVoltage();
-      *value = battVolt;
+      *value = battVolt & 0xFF;
+    break;
+    case 0x27:
+      *value = battVolt >> 8;
     break;
 
     default:
@@ -153,7 +168,7 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {  // TODO: Fix to us
   return 0;
 }
 
-int handle_register_write(uint8_t reg_addr, uint8_t value) {  // TODO: Fix to use uint8_t for values
+int handle_register_write(uint8_t reg_addr, uint8_t value) {
   switch (reg_addr) {
     case 0x02:
       applyChanges(); // Apply and store current settings
@@ -169,19 +184,31 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {  // TODO: Fix to us
     break;
 
     case 0x10:
-      chrgCurrent = value;
+      chrgCurrent = (chrgCurrent & 0xFF00) + value;
     break;
-
     case 0x11:
-      termCurrent = value;
+      chrgCurrent = (chrgCurrent & 0x00FF) + (value << 8);
     break;
 
     case 0x12:
-      preCurrent = value;
+      termCurrent = (termCurrent & 0xFF00) + value;
+    break;
+    case 0x13:
+      termCurrent = (termCurrent & 0x00FF) + (value << 8);
     break;
 
-    case 0x13:
-      chrgVoltage = value;
+    case 0x14:
+      preCurrent = (preCurrent & 0xFF00) + value;
+    break;
+    case 0x15:
+      preCurrent = (preCurrent & 0x00FF) + (value << 8);
+    break;
+
+    case 0x16:
+      chrgVoltage = (chrgVoltage & 0xFF00) + value;
+    break;
+    case 0x17:
+      chrgVoltage = (chrgVoltage & 0x00FF) + (value << 8);
     break;
 
     default:
