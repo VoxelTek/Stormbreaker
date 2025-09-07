@@ -394,7 +394,6 @@ void setFan(bool active, uint8_t speed) {
   }
 }
 
-
 void powerLED(uint8_t mode) {
   /*
   0 = All LEDs off
@@ -479,7 +478,7 @@ void enableShipping() {
 
 void setupBQ() {
   bq25895_set_iin_max(&bq, maxInCurrent);
-  bq25895_set_vsys_min(&bq, 3500);
+  bq25895_set_vsys_min(&bq, 3000);
   bq25895_set_charge_config(&bq, BQ_CHG_CONFIG_ENABLE);
   bq25895_set_charge_current(&bq, chrgCurrent);
   bq25895_set_term_current(&bq, termCurrent);
@@ -506,7 +505,6 @@ void applyChanges() {
   setupBQ();
 }
 
-
 void getBattVoltage() {
   if (!isPowered) {
     bq25895_trigger_adc_read(&bq);
@@ -514,7 +512,6 @@ void getBattVoltage() {
   }
   bq25895_get_adc_batt(&bq, &battVolt);
 }
-
 
 void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled) {
   if (!enabled) {

@@ -20,7 +20,7 @@ void rtc_init()
         RTC.CLKSEL      = RTC_CLKSEL_INT32K_gc;
         RTC.PITINTCTRL  = RTC_PI_bm;
         RTC.PITCTRLA    = RTC_PERIOD_CYC32_gc | RTC_PITEN_bm;
-        enabled = 1;
+        enabled         = 1;
     }
 }
 
@@ -29,7 +29,7 @@ void rtc_deinit()
     if (enabled) {
         RTC.PITINTCTRL  = 0;
         RTC.PITCTRLA    = 0;
-        enabled = 0;
+        enabled         = 0;
     }
 }
 
