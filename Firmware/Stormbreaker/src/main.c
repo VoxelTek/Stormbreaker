@@ -17,7 +17,7 @@
 
 #include "i2c_bitbang.h"
 
-#include "bq25895.h"
+#include "bq25895.h"    // Based on jefflongo's BQ24292i driver
 
 #define BAUD_RATE 115200
 
@@ -30,20 +30,15 @@
 #define ADDR_CHRGVOLTAGE 0x07
 #define ADDR_FANSPEED 0x09
 
-const uint8_t ver = 0x02; // v0.2 (ver / 10)
+const uint8_t ver = 0x02;   // v0.2 (ver / 10)
 
-bool isPowered = false; // Is the Wii powered?
-bool isCharging = false; // Is the BQ charging the batteries?
+bool isPowered = false;     // Is the Wii powered?
+bool isCharging = false;    // Is the BQ charging the batteries?
+bool isOverTemp = false;    // Is the Wii (or an IC) too hot?
 
-//bool buttonTriggered = false; // Has the button been triggered?
 bool triggeredSoftShutdown = false; // Did we trigger the soft shutdown?
 
-bool isOverTemp = false;
-
-//Much of this is specific to the BQ chip I'm using, see the datasheet for more info.
-//const uint8_t bqAddr = 0x6A;
-
-uint8_t battCharge = 0x00; // 0x00-0xFF, representing 0-100% charge
+uint8_t battCharge = 0x00;  // 0x00-0xFF, representing 0-100% charge
 uint16_t battVolt = 3700;
 const uint16_t minBattVolt  = 2700;
 const uint16_t maxInCurrent = 3250;
@@ -52,11 +47,11 @@ const uint16_t battChrgLevels[9] = {2684, 2864, 3064, 3264, 3444, 3644, 3824, 40
 bq25895_fault_t pwrErrorStatus = 0x00;
 bq25895_charge_state_t chargeStatus = 0x00;
 
-uint16_t chrgCurrent = 4096; // 4096mA
-uint16_t preCurrent = 128; // 128mA
-uint16_t termCurrent = 256; // 256mA
-uint16_t chrgVoltage = 4208; // 4.208V
-uint8_t fanSpeed = 0xFF; // 100% speed
+uint16_t chrgCurrent = 4096;  // 4096mA
+uint16_t preCurrent = 128;    // 128mA
+uint16_t termCurrent = 256;   // 256mA
+uint16_t chrgVoltage = 4208;  // 4.208V
+uint8_t fanSpeed = 0xFF;      // 100% speed
 
 const bool ilimEnabled = false;
 
@@ -71,7 +66,10 @@ void getEEPROM() {
     chrgVoltage = eeprom_read_word(ADDR_CHRGVOLTAGE);
     fanSpeed = eeprom_read_byte(ADDR_FANSPEED);
   }
-  eeprom_write_byte(ADDR_VER, ver);
+
+  if (eeprom_read_byte(ADDR_VER) != ver) {
+    eeprom_write_byte(ADDR_VER, ver);
+  }
 }
 
 bool i2c_bitbang_write(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
@@ -162,7 +160,7 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
     break;
 
     default:
-      value = 0x00; // Invalid register address, return all zeroes.
+      *value = 0x00; // Invalid register address, return nothing.
     break;
   }
   return 0;
@@ -176,6 +174,7 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
 
     case 0x04:
       fanSpeed = value;
+      setFan(true, fanSpeed);
     break;
 
     case 0x0B:
@@ -247,21 +246,19 @@ bool setup() {
   gpio_set_low(SOFT_PWR);
   gpio_output(SOFT_PWR);
 
-  // TODO: Fan PWM 
   gpio_output(FAN);
-  //gpio_config(FAN, 0);
-  gpio_set_low(FAN);
+  initFan();
 
   gpio_set_high(PWR_ON); // Makes sure console is off
   gpio_output(PWR_ON);
   
-  setFan(false, fanSpeed); // Turn off fan
+  setFan(false, 0x00); // Turn off fan initially
 
   i2c_target_init(STORM_I2C, handle_register_read, handle_register_write);
 
   led_init();
 
-  i2c_configure(I2C_MODE_FAST);
+  i2c_configure(I2C_MODE_FAST); // Speed isn't actually configured here, hardcoded to I2C_MODE_FAST
   if (!bq25895_is_present(&bq)) {
     return false;
   }
@@ -287,14 +284,12 @@ void loop() {
 
 void overTemp() {
   triggerShutdown(); // Trigger shutdown process
-  //analogWrite(FAN, 0xff); // fan at max speed, keep console cool
+  setFan(true, 0xff); // Fan at full-speed, to cool down console
   powerLED(5);
   isOverTemp = true;
-  for (int i = 0; i < 120; i++) { // 2 min to cool down
-    _delay_ms(1000);
-  }
+  _delay_ms(120 * 1000); // 2 minutes to cool down
   isOverTemp = false;
-  setFan(false, fanSpeed); // disable cooling fan
+  setFan(false, 0x00); // disable cooling fan
 }
 
 
@@ -304,7 +299,7 @@ void buttonHold() {
   }
   else {
     getBattVoltage();
-    if (((battVolt > minBattVolt) || isCharging) && !isOverTemp && (pwrErrorStatus == 0x00)) { 
+    if (((battVolt > minBattVolt) || isCharging) && !isOverTemp && (pwrErrorStatus == BQ_FAULT_NONE)) { 
     // Check that either the battery is charged enough, or console is charging, 
     // AND make sure there's no over-temp issues
     // AND make sure there's no power errors
@@ -324,8 +319,9 @@ void triggerShutdown() {
     gpio_set_high(SOFT_PWR); // Trigger the soft shutdown sequence on the Wii
     _delay_ms(30);
     gpio_set_low(SOFT_PWR);
+    powerLED(0);
     triggeredSoftShutdown = true;
-    _delay_ms(2500);
+    _delay_ms(2500); // Wait for softShutdown() function
     if (isPowered && triggeredSoftShutdown) { // Wii did not shut itself down safely, timeout and force a power-off
       consoleOff();
       triggeredSoftShutdown = false;
@@ -382,15 +378,19 @@ void chargingStatus() {
 }
 
 void initFan() {
-  // TODO: PWM stuff
+  TCA0.SINGLE.PER = 255; // 8-bit resolution should be enough
+  TCA0.SINGLE.CMP2 = 128; // set duty cycle to 50% <-- adjust for different speed
+  TCA0.SINGLE.CTRLB = TCA_SINGLE_WGMODE_SINGLESLOPE_gc | TCA_SINGLE_CMP2EN_bm;
+  TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1_gc | TCA_SINGLE_ENABLE_bm;
 }
 
 void setFan(bool active, uint8_t speed) {
-  if (active) {
-    //analogWrite(FAN, speed);
+  if (active && speed > 0x00) {
+    TCA0.SINGLE.CTRLA = TCA0.SINGLE.CTRLA | 0x01;
+    TCA0.SINGLE.CMP2 = speed;
   }
   else {
-    gpio_set_low(FAN);
+    TCA0.SINGLE.CTRLA = TCA0.SINGLE.CTRLA & ~(0x01);
   }
 }
 
@@ -467,7 +467,7 @@ void consoleOff() {
   gpio_set_high(PWR_ON); // Deactivate MOSFET
   isPowered = false;
 
-  setFan(false, fanSpeed);
+  setFan(false, 0x00);
 
   monitorBatt();
 }

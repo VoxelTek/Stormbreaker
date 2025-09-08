@@ -6758,16 +6758,6 @@
 	)
 	(wire
 		(pts
-			(xy 247.65 24.13) (xy 247.65 20.32)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cdd60447-2677-4521-892a-9797883bf011")
-	)
-	(wire
-		(pts
 			(xy 217.17 127) (xy 217.17 137.16)
 		)
 		(stroke
@@ -8534,7 +8524,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 247.65 29.21 0)
+		(at 247.65 25.4 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8543,7 +8533,7 @@
 		(fields_autoplaced yes)
 		(uuid "184d2037-d273-45f2-a851-4a48a887c480")
 		(property "Reference" "#PWR024"
-			(at 247.65 35.56 0)
+			(at 247.65 31.75 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8552,7 +8542,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 247.65 34.29 0)
+			(at 247.65 30.48 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8560,7 +8550,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 247.65 29.21 0)
+			(at 247.65 25.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8569,7 +8559,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 247.65 29.21 0)
+			(at 247.65 25.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -8578,7 +8568,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 247.65 29.21 0)
+			(at 247.65 25.4 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12436,7 +12426,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 247.65 26.67 0)
+		(at 247.65 22.86 0)
 		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
@@ -12445,7 +12435,7 @@
 		(dnp no)
 		(uuid "c625ddfa-3369-4959-b248-623f82cf1b53")
 		(property "Reference" "C14"
-			(at 245.11 25.4062 0)
+			(at 245.11 21.5962 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12454,7 +12444,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 245.11 27.9462 0)
+			(at 245.11 24.1362 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12463,7 +12453,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 247.65 26.67 0)
+			(at 247.65 22.86 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12472,7 +12462,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 247.65 26.67 0)
+			(at 247.65 22.86 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12481,7 +12471,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
-			(at 247.65 26.67 0)
+			(at 247.65 22.86 0)
 			(effects
 				(font
 					(size 1.27 1.27)
