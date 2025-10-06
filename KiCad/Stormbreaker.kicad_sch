@@ -5453,12 +5453,6 @@
 		(uuid "50412201-6ba9-4ac6-a331-824799192152")
 	)
 	(junction
-		(at 133.35 154.94)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "5b2d9cbc-03f2-4044-bd1b-3c856447c323")
-	)
-	(junction
 		(at 62.23 156.21)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5653,6 +5647,10 @@
 		(uuid "7556db0e-77de-4f65-8c3a-70fd7b86fcff")
 	)
 	(no_connect
+		(at 76.2 83.82)
+		(uuid "79d3a93d-2c32-4a16-be82-a8f59e8f58e0")
+	)
+	(no_connect
 		(at 76.2 71.12)
 		(uuid "8dbd1449-9481-4c3b-87c7-93b86d055b85")
 	)
@@ -5663,10 +5661,6 @@
 	(no_connect
 		(at 257.81 35.56)
 		(uuid "9d34f194-67f3-43e0-8124-b6e7f802fd27")
-	)
-	(no_connect
-		(at 76.2 93.98)
-		(uuid "a30a0ea4-ff8d-4c50-97a6-dc8d6e85f422")
 	)
 	(no_connect
 		(at 187.96 85.09)
@@ -5778,7 +5772,7 @@
 	)
 	(wire
 		(pts
-			(xy 133.35 154.94) (xy 135.89 154.94)
+			(xy 113.03 154.94) (xy 135.89 154.94)
 		)
 		(stroke
 			(width 0)
@@ -6458,16 +6452,6 @@
 	)
 	(wire
 		(pts
-			(xy 113.03 154.94) (xy 133.35 154.94)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9d789396-402c-4356-9aa2-10caf0540407")
-	)
-	(wire
-		(pts
 			(xy 187.96 74.93) (xy 207.01 74.93)
 		)
 		(stroke
@@ -6768,16 +6752,6 @@
 	)
 	(wire
 		(pts
-			(xy 59.69 83.82) (xy 76.2 83.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cfb77c5b-96d2-4efd-a357-e684caa46e42")
-	)
-	(wire
-		(pts
 			(xy 134.62 66.04) (xy 113.03 66.04)
 		)
 		(stroke
@@ -6808,13 +6782,13 @@
 	)
 	(wire
 		(pts
-			(xy 133.35 154.94) (xy 133.35 156.21)
+			(xy 59.69 93.98) (xy 76.2 93.98)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "daa284b2-6e50-4c6b-b35a-95d3df0a6c09")
+		(uuid "da6d9e58-9a4d-4d56-859d-8db12465da45")
 	)
 	(wire
 		(pts
@@ -7046,8 +7020,8 @@
 		)
 		(uuid "03e6983f-22b9-4ddb-8a02-8c67c2c9afbe")
 	)
-	(label "BQ_STAT"
-		(at 59.69 83.82 0)
+	(label "BQ_~{INT}"
+		(at 59.69 93.98 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7055,16 +7029,6 @@
 			(justify left bottom)
 		)
 		(uuid "1ae877ff-6ae0-40fa-b5fb-ec9b4c70f0ad")
-	)
-	(label "BQ_STAT"
-		(at 147.32 92.71 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "300a39a4-392a-47ed-be14-3f5a74f9326b")
 	)
 	(label "ALERT"
 		(at 187.96 87.63 0)
@@ -7145,6 +7109,16 @@
 			(justify right bottom)
 		)
 		(uuid "b719e611-193f-4a76-aabb-5df6c5546fac")
+	)
+	(label "BQ_~{INT}"
+		(at 147.32 92.71 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c099e8a4-330d-4a0d-ad39-cfe0c5632fce")
 	)
 	(label "PowerButton"
 		(at 219.71 74.93 180)
@@ -12046,75 +12020,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C_Small")
-		(at 133.35 158.75 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "b092d3f5-3a9b-46c3-814f-bfb724cf9eef")
-		(property "Reference" "C11"
-			(at 135.89 158.242 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "4.7μF"
-			(at 135.89 160.782 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 133.35 158.75 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 133.35 158.75 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Unpolarized capacitor, small symbol"
-			(at 133.35 158.75 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "f81b0fa0-002b-407e-92d1-5d5c90040501")
-		)
-		(pin "2"
-			(uuid "08972fac-0560-4384-93bc-32252ecc98e3")
-		)
-		(instances
-			(project "Stormbreaker"
-				(path "/dcc89f95-4ae4-4756-aa81-33bf4d3c86ca"
-					(reference "C11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Connector:TestPoint")
 		(at 59.69 176.53 0)
 		(mirror x)
@@ -12765,72 +12670,6 @@
 			(project "Stormbreaker"
 				(path "/dcc89f95-4ae4-4756-aa81-33bf4d3c86ca"
 					(reference "#PWR027")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 133.35 161.29 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "d3ec3ed5-5ae2-422f-bdba-d672367913da")
-		(property "Reference" "#PWR015"
-			(at 133.35 167.64 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Value" "GND"
-			(at 133.35 166.37 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 133.35 161.29 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 133.35 161.29 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 133.35 161.29 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "deac59cb-de28-4fcc-9a0f-9b8b9e0149d1")
-		)
-		(instances
-			(project "Stormbreaker"
-				(path "/dcc89f95-4ae4-4756-aa81-33bf4d3c86ca"
-					(reference "#PWR015")
 					(unit 1)
 				)
 			)
