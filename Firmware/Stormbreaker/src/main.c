@@ -72,28 +72,14 @@ void getEEPROM() {
 }
 
 bool i2c_bitbang_write(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    struct i2c_msg msg[2];
-    msg[0].buf = reg;
-    msg[0].len = 1;
-    msg[0].flags = I2C_MSG_WRITE;
-    msg[1].buf = buf;
-    msg[1].len = len;
-    msg[1].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
-    if (i2c_transfer(addr, &msg, 2) != 0) {
+    if (i2c_reg_write_byte(addr, reg, *buf) != 0) {
       return false;
     }
     return true;
 }
 
 bool i2c_bitbang_read(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    struct i2c_msg msg[2];
-    msg[0].buf = reg;
-    msg[0].len = 1;
-    msg[0].flags = I2C_MSG_WRITE;
-    msg[1].buf = buf;
-    msg[1].len = len;
-    msg[1].flags = I2C_MSG_READ | I2C_MSG_STOP;
-    if (i2c_transfer(addr, &msg, 2) != 0) {
+    if (i2c_reg_read_byte(addr, reg, buf) != 0) {
       return false;
     }
     return true;
@@ -101,7 +87,7 @@ bool i2c_bitbang_read(uint8_t addr, uint8_t reg, void const* buf, size_t len, vo
 
 bq25895_t bq = {
     .write = i2c_bitbang_write,
-    .read = i2c_bitbang_read,
+    .read = i2c_bitbang_read
 };
 
 int handle_register_read(uint8_t reg_addr, uint8_t *value) {
