@@ -24,13 +24,13 @@
 #define STORM_I2C 0x50
 
 #define ADDR_VER 0x00
-#define ADDR_CHRGCURRENT 0x01
-#define ADDR_PRECURRENT 0x03
-#define ADDR_TERMCURRENT 0x05
-#define ADDR_CHRGVOLTAGE 0x07
-#define ADDR_FANSPEED 0x09
+#define ADDR_CHRGCURRENT 0x02
+#define ADDR_PRECURRENT 0x04
+#define ADDR_TERMCURRENT 0x06
+#define ADDR_CHRGVOLTAGE 0x08
+#define ADDR_FANSPEED 0x0A
 
-const uint8_t ver = 0x02;   // v0.2 (ver / 10)
+const uint8_t ver = 0x03;   // v0.3 (ver / 10)
 
 bool isPowered = false;     // Is the Wii powered?
 bool isCharging = false;    // Is the BQ charging the batteries?
@@ -42,7 +42,6 @@ uint8_t battCharge = 0x00;  // 0x00-0xFF, representing 0-100% charge
 uint16_t battVolt = 3700;
 const uint16_t minBattVolt  = 2700;
 const uint16_t maxInCurrent = 3250;
-const uint16_t battVoltLevels[5] = {4200, 3700, 3000, 2800, 2700};
 const uint16_t battChrgLevels[9] = {2684, 2864, 3064, 3264, 3444, 3644, 3824, 4024, 4204};
 bq25895_fault_t pwrErrorStatus = 0x00;
 bq25895_charge_state_t chargeStatus = 0x00;
@@ -72,21 +71,32 @@ void getEEPROM() {
   }
 }
 
-bool i2c_bitbang_write(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    struct i2c_msg msg;
-    msg.buf = buf;
-    msg.len = len;
-    if (i2c_transfer(addr, &msg, 1) == 0) {
-      return true;
+bool i2c_bitbang_write(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
+    struct i2c_msg msg[2];
+    msg[0].buf = reg;
+    msg[0].len = 1;
+    msg[0].flags = I2C_MSG_WRITE;
+    msg[1].buf = buf;
+    msg[1].len = len;
+    msg[1].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
+    if (i2c_transfer(addr, &msg, 2) != 0) {
+      return false;
     }
-    return false;
+    return true;
 }
 
-bool i2c_bitbang_read(uint16_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    if (i2c_read(addr, buf, len) == 0) {
-      return true;
+bool i2c_bitbang_read(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
+    struct i2c_msg msg[2];
+    msg[0].buf = reg;
+    msg[0].len = 1;
+    msg[0].flags = I2C_MSG_WRITE;
+    msg[1].buf = buf;
+    msg[1].len = len;
+    msg[1].flags = I2C_MSG_READ | I2C_MSG_STOP;
+    if (i2c_transfer(addr, &msg, 2) != 0) {
+      return false;
     }
-    return false;
+    return true;
 }
 
 bq25895_t bq = {
@@ -217,6 +227,10 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
   return 0;
 }
 
+void setupHUSB(float voltage, float current) {
+  
+}
+
 bool setup() {
   button_init(&pwr_button, &BUTTON.port, BUTTON.num, NULL, buttonHold);
   rtc_init();
@@ -234,8 +248,8 @@ bool setup() {
   gpio_input(BUTTON);
   gpio_config(BUTTON, PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc);
 
-  gpio_input(CHRG_STAT);
-  gpio_config(CHRG_STAT, PORT_ISC_BOTHEDGES_gc);
+  gpio_input(BQ_INT);
+  gpio_config(BQ_INT, PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc);
 
   gpio_input(TEMP_ALERT);
   gpio_config(TEMP_ALERT, PORT_PULLUPEN_bm | PORT_ISC_FALLING_gc);
@@ -563,16 +577,16 @@ void monitorBatt() {
     powerLED(5); // Show flashing red for error
     return;
   }
-  if (battVolt > battVoltLevels[1]) {
+  if (battVolt > battChrgLevels[5]) {
     powerLED(1); // High charge
   }
-  else if (battVolt > battVoltLevels[2]) {
+  else if (battVolt > battChrgLevels[2]) {
     powerLED(2); // Medium charge
   }
-  else if (battVolt > battVoltLevels[3]) {
+  else if (battVolt > battChrgLevels[1]) {
     powerLED(3); // Low charge
   }
-  else if (battVolt <= battVoltLevels[3]) {
+  else if (battVolt <= battChrgLevels[1]) {
     powerLED(4); // ABOUT TO RUN OUT
   }
 }
@@ -604,7 +618,7 @@ ISR(PORTB_PORT_vect) {
 }
 
 ISR(PORTC_PORT_vect) {
-  if (gpio_read_intflag(CHRG_STAT)) {
+  if (gpio_read_intflag(BQ_INT)) {
     chargingStatus();
   }
   PORTC.INTFLAGS = 0xFF;

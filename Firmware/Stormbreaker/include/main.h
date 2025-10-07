@@ -7,7 +7,7 @@
 static const gpio_t SDA2        = {&PORTC, 2};
 static const gpio_t SCL2        = {&PORTC, 3};
 
-static const gpio_t CHRG_STAT   = {&PORTC, 0};
+static const gpio_t BQ_INT      = {&PORTC, 0};
 
 static const gpio_t FAN         = {&PORTB, 2};
 
@@ -52,4 +52,4 @@ bool i2c_bitbang_read(uint16_t addr, uint8_t reg, void const* buf, size_t len, v
 void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled);
 void battChargeStatus();
 void monitorBatt();
-
+void setupHUSB(float voltage, float current);
