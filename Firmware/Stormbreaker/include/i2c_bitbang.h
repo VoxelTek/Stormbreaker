@@ -16,31 +16,31 @@
  */
 
 /** Standard mode (100 KHz) */
-#define I2C_MODE_STANDARD       0
+#define I2C_BB_MODE_STANDARD       0
 
 /** Fast mode (400 KHz) */
-#define I2C_MODE_FAST           1
+#define I2C_BB_MODE_FAST           1
 
 /**
  * I2C message flags.
  */
 
 /** Write message to the I2C bus. */
-#define I2C_MSG_WRITE           (0 << 0)
+#define I2C_BB_MSG_WRITE           (0 << 0)
 
 /** Read message from the I2C bus. */
-#define I2C_MSG_READ            (1 << 0)
+#define I2C_BB_MSG_READ            (1 << 0)
 
 /** Send a STOP condition after the message. */
-#define I2C_MSG_STOP            (1 << 1)
+#define I2C_BB_MSG_STOP            (1 << 1)
 
 /** Send a RESTART condition before this message. */
-#define I2C_MSG_RESTART         (1 << 2)
+#define I2C_BB_MSG_RESTART         (1 << 2)
 
 /**
  * A message to be sent or received on the I2C bus.
  */
-struct i2c_msg {
+struct i2c_bb_msg {
   /** Data buffer */
   uint8_t *buf;
 
@@ -54,8 +54,8 @@ struct i2c_msg {
 /**
  * I2C error codes.
  */
-enum i2c_error {
-  I2C_ERR = 1,
+enum i2c_bb_error {
+  I2C_BB_ERR = 1,
 };
 
 /**
@@ -64,7 +64,7 @@ enum i2c_error {
  * @param mode I2C_MODE_STANDARD or I2C_MODE_FAST
  * @return 0 if successful, negative error code
  */
-int i2c_configure(uint8_t mode);
+int i2c_bb_configure(uint8_t mode);
 
 /**
  * Send one or more messages on the I2C bus, in a single transfer.
@@ -75,7 +75,7 @@ int i2c_configure(uint8_t mode);
  * @param num_msgs Number of messages to send
  * @return 0 if successful, negative error code otherwise
  */
-int i2c_transfer(uint8_t addr, struct i2c_msg *msgs, uint8_t num_msgs);
+int i2c_bb_transfer(uint8_t addr, struct i2c_bb_msg *msgs, uint8_t num_msgs);
 
 /**
  * Detect if an I2C device is present at a given address.
@@ -83,17 +83,17 @@ int i2c_transfer(uint8_t addr, struct i2c_msg *msgs, uint8_t num_msgs);
  * @param addr 7-bit I2C address of the target device
  * @return true if the device is present, false otherwise
  */
-static inline bool i2c_detect(uint8_t addr)
+static inline bool i2c_bb_detect(uint8_t addr)
 {
   uint8_t tmp;
 
-  struct i2c_msg msg = {
+  struct i2c_bb_msg msg = {
       .buf   = &tmp,
       .len   = 0,
-      .flags = I2C_MSG_WRITE | I2C_MSG_STOP,
+      .flags = I2C_BB_MSG_WRITE | I2C_BB_MSG_STOP,
   };
 
-  return i2c_transfer(addr, &msg, 1) == 0;
+  return i2c_bb_transfer(addr, &msg, 1) == 0;
 }
 
 /**
@@ -104,15 +104,15 @@ static inline bool i2c_detect(uint8_t addr)
  * @param len Number of bytes to write
  * @return 0 if successful, negative error code otherwise
  */
-static inline int i2c_write(uint8_t addr, uint8_t *buf, uint32_t len)
+static inline int i2c_bb_write(uint8_t addr, uint8_t *buf, uint32_t len)
 {
-  struct i2c_msg msg = {
+  struct i2c_bb_msg msg = {
       .buf   = buf,
       .len   = len,
-      .flags = I2C_MSG_WRITE | I2C_MSG_STOP,
+      .flags = I2C_BB_MSG_WRITE | I2C_BB_MSG_STOP,
   };
 
-  return i2c_transfer(addr, &msg, 1);
+  return i2c_bb_transfer(addr, &msg, 1);
 }
 
 /**
@@ -124,15 +124,15 @@ static inline int i2c_write(uint8_t addr, uint8_t *buf, uint32_t len)
  *
  * @return 0 if successful, negative error code otherwise
  */
-static inline int i2c_read(uint8_t addr, uint8_t *buf, uint32_t len)
+static inline int i2c_bb_read(uint8_t addr, uint8_t *buf, uint32_t len)
 {
-  struct i2c_msg msg = {
+  struct i2c_bb_msg msg = {
       .buf   = buf,
       .len   = len,
-      .flags = I2C_MSG_READ | I2C_MSG_STOP,
+      .flags = I2C_BB_MSG_READ | I2C_BB_MSG_STOP,
   };
 
-  return i2c_transfer(addr, &msg, 1);
+  return i2c_bb_transfer(addr, &msg, 1);
 }
 
 /**
@@ -144,23 +144,23 @@ static inline int i2c_read(uint8_t addr, uint8_t *buf, uint32_t len)
  * @param read_buf Buffer to read from the device
  * @param read_len Length of the read buffer
  */
-static inline int i2c_write_read(uint8_t addr, uint8_t *write_buf, uint32_t write_len,
+static inline int i2c_bb_write_read(uint8_t addr, uint8_t *write_buf, uint32_t write_len,
                                  uint8_t *read_buf, uint32_t read_len)
 {
-  struct i2c_msg msgs[] = {
+  struct i2c_bb_msg msgs[] = {
       {
           .buf   = write_buf,
           .len   = write_len,
-          .flags = I2C_MSG_WRITE,
+          .flags = I2C_BB_MSG_WRITE,
       },
       {
           .buf   = read_buf,
           .len   = read_len,
-          .flags = I2C_MSG_RESTART | I2C_MSG_READ | I2C_MSG_STOP,
+          .flags = I2C_BB_MSG_RESTART | I2C_BB_MSG_READ | I2C_BB_MSG_STOP,
       },
   };
 
-  return i2c_transfer(addr, msgs, 2);
+  return i2c_bb_transfer(addr, msgs, 2);
 }
 
 /**
@@ -172,9 +172,9 @@ static inline int i2c_write_read(uint8_t addr, uint8_t *write_buf, uint32_t writ
  * @param data Pointer to store the read data
  * @return 0 if successful, negative error code otherwise
  */
-static inline int i2c_reg_read_byte(uint8_t addr, uint8_t reg, uint8_t *data)
+static inline int i2c_bb_reg_read_byte(uint8_t addr, uint8_t reg, uint8_t *data)
 {
-  return i2c_write_read(addr, &reg, 1, data, 1);
+  return i2c_bb_write_read(addr, &reg, 1, data, 1);
 }
 
 /**
@@ -186,10 +186,10 @@ static inline int i2c_reg_read_byte(uint8_t addr, uint8_t reg, uint8_t *data)
  * @param value Value to write to the register
  * @return 0 if successful, negative error code otherwise
  */
-static inline int i2c_reg_write_byte(uint8_t addr, uint8_t reg, uint8_t value)
+static inline int i2c_bb_reg_write_byte(uint8_t addr, uint8_t reg, uint8_t value)
 {
   uint8_t buf[] = {reg, value};
-  return i2c_write(addr, buf, 2);
+  return i2c_bb_write(addr, buf, 2);
 }
 
 /**
@@ -201,13 +201,13 @@ static inline int i2c_reg_write_byte(uint8_t addr, uint8_t reg, uint8_t value)
  * @param value Pointer to store the read data
  * @return 0 if successful, negative error code otherwise
  */
-static inline int i2c_reg_read_word(uint8_t addr, uint8_t reg, uint16_t *value)
+static inline int i2c_bb_reg_read_word(uint8_t addr, uint8_t reg, uint16_t *value)
 {
   int rcode;
 
   // Read the register value
   uint8_t buf[2];
-  if ((rcode = i2c_write_read(addr, &reg, 1, buf, 2)) < 0)
+  if ((rcode = i2c_bb_write_read(addr, &reg, 1, buf, 2)) < 0)
     return rcode;
 
   // Combine the two bytes into a little-endian word
@@ -225,10 +225,10 @@ static inline int i2c_reg_read_word(uint8_t addr, uint8_t reg, uint16_t *value)
  * @param value Value to write to the register
  * @return 0 if successful, negative error code otherwise
  */
-static inline int i2c_reg_write_word(uint8_t addr, uint8_t reg, uint16_t value)
+static inline int i2c_bb_reg_write_word(uint8_t addr, uint8_t reg, uint16_t value)
 {
   uint8_t buf[] = {reg, value & 0xFF, value >> 8};
-  return i2c_write(addr, buf, 3);
+  return i2c_bb_write(addr, buf, 3);
 }
 
 /**
@@ -240,13 +240,13 @@ static inline int i2c_reg_write_word(uint8_t addr, uint8_t reg, uint16_t value)
  * @param value Value to write to the register
  * @return 0 if successful, negative error code otherwise
  */
-static inline int i2c_reg_update_byte(uint8_t addr, uint8_t reg, uint8_t mask, uint8_t value)
+static inline int i2c_bb_reg_update_byte(uint8_t addr, uint8_t reg, uint8_t mask, uint8_t value)
 {
   int rcode;
 
   // Read the current register value
   uint8_t old_value;
-  if ((rcode = i2c_reg_read_byte(addr, reg, &old_value)) < 0)
+  if ((rcode = i2c_bb_reg_read_byte(addr, reg, &old_value)) < 0)
     return rcode;
 
   // Update the register value
@@ -256,5 +256,5 @@ static inline int i2c_reg_update_byte(uint8_t addr, uint8_t reg, uint8_t mask, u
   }
 
   // Write the updated register value
-  return i2c_reg_write_byte(addr, reg, new_value);
+  return i2c_bb_reg_write_byte(addr, reg, new_value);
 }

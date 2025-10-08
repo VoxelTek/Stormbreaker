@@ -27,7 +27,7 @@ static bool configured = false;
 static bool drive_mode = I2C_DRIVE_PUSH_PULL;
 
 // Set the state of the SCL line
-static inline void i2c_set_scl(int state)
+static inline void i2c_bb_set_scl(int state)
 {
   if (state) {
     if (drive_mode == I2C_DRIVE_OPEN_DRAIN) {
@@ -50,7 +50,7 @@ static inline void i2c_set_scl(int state)
 }
 
 // Set the state of the SDA line
-static inline void i2c_set_sda(int state)
+static inline void i2c_bb_set_sda(int state)
 {
   if (state) {
     // Set SDA as input, allow pull-up resistor to pull the line high
@@ -64,7 +64,7 @@ static inline void i2c_set_sda(int state)
 }
 
 // Get the current state of the SDA line
-static inline bool i2c_get_sda()
+static inline bool i2c_bb_get_sda()
 {
   // Set SDA as input and return the state
   gpio_input(PIN_SDA);
@@ -72,7 +72,7 @@ static inline bool i2c_get_sda()
 }
 
 // Delay for a number of ticks
-#define i2c_delay(us) _delay_us(us)
+#define i2c_bb_delay(us) _delay_us(us)
 
 /*
 static inline void i2c_delay(double microseconds)
@@ -82,99 +82,99 @@ static inline void i2c_delay(double microseconds)
 */
 
 // I2C start condition
-static inline void i2c_start()
+static inline void i2c_bb_start()
 {
-  i2c_set_sda(0);
-  i2c_delay(half_delay);
+  i2c_bb_set_sda(0);
+  i2c_bb_delay(half_delay);
 
-  i2c_set_scl(0);
-  i2c_delay(half_delay);
+  i2c_bb_set_scl(0);
+  i2c_bb_delay(half_delay);
 }
 
 // I2C repeated start condition
-static inline void i2c_repeated_start()
+static inline void i2c_bb_repeated_start()
 {
-  i2c_set_sda(1);
-  i2c_delay(half_delay);
+  i2c_bb_set_sda(1);
+  i2c_bb_delay(half_delay);
 
-  i2c_set_scl(1);
-  i2c_delay(half_delay);
+  i2c_bb_set_scl(1);
+  i2c_bb_delay(half_delay);
 
-  i2c_start();
+  i2c_bb_start();
 }
 
 // I2C stop condition
-static inline void i2c_stop()
+static inline void i2c_bb_stop()
 {
-  i2c_set_sda(0);
-  i2c_delay(half_delay);
+  i2c_bb_set_sda(0);
+  i2c_bb_delay(half_delay);
 
-  i2c_set_scl(1);
-  i2c_delay(delay);
+  i2c_bb_set_scl(1);
+  i2c_bb_delay(delay);
 
-  i2c_set_sda(1);
-  i2c_delay(delay);
+  i2c_bb_set_sda(1);
+  i2c_bb_delay(delay);
 }
 
 // Write a single bit
-static inline void i2c_write_bit(int bit)
+static inline void i2c_bb_write_bit(int bit)
 {
-  i2c_set_sda(bit);
-  i2c_delay(half_delay);
+  i2c_bb_set_sda(bit);
+  i2c_bb_delay(half_delay);
 
-  i2c_set_scl(1);
-  i2c_delay(delay);
+  i2c_bb_set_scl(1);
+  i2c_bb_delay(delay);
 
-  i2c_set_scl(0);
-  i2c_delay(half_delay);
+  i2c_bb_set_scl(0);
+  i2c_bb_delay(half_delay);
 }
 
 // Read a single bit
-static inline int i2c_read_bit()
+static inline int i2c_bb_read_bit()
 {
-  i2c_set_sda(1);
-  i2c_delay(half_delay);
+  i2c_bb_set_sda(1);
+  i2c_bb_delay(half_delay);
 
-  i2c_set_scl(1);
-  i2c_delay(delay);
+  i2c_bb_set_scl(1);
+  i2c_bb_delay(delay);
 
-  int bit = i2c_get_sda();
+  int bit = i2c_bb_get_sda();
 
-  i2c_set_scl(0);
-  i2c_delay(half_delay);
+  i2c_bb_set_scl(0);
+  i2c_bb_delay(half_delay);
 
   return bit;
 }
 
 // Write a single byte
-static inline int i2c_write_byte(uint8_t data)
+static inline int i2c_bb_write_byte(uint8_t data)
 {
   for (uint8_t i = 0; i < 8; i++) {
-    i2c_write_bit(data & 0x80); // write the most-significant bit
+    i2c_bb_write_bit(data & 0x80); // write the most-significant bit
     data <<= 1;
   }
 
   // Return inverted ACK bit - 'true' for ACK, 'false' for NACK
-  return !i2c_read_bit();
+  return !i2c_bb_read_bit();
 }
 
 // Read a single byte
-static inline uint8_t i2c_read_byte()
+static inline uint8_t i2c_bb_read_byte()
 {
   uint8_t data = 0;
   for (uint8_t i = 0; i < 8; i++) {
     data <<= 1;
-    data |= i2c_read_bit();
+    data |= i2c_bb_read_bit();
   }
 
   return data;
 }
 
 // Perform an I2C bit-banged transfer
-static inline int i2c_bitbang_transfer(uint8_t addr, struct i2c_msg *msgs, uint8_t num_msgs)
+static inline int i2c_bitbang_transfer(uint8_t addr, struct i2c_bb_msg *msgs, uint8_t num_msgs)
 {
   // Always start with a start condition
-  unsigned int flags = I2C_MSG_RESTART;
+  unsigned int flags = I2C_BB_MSG_RESTART;
 
   // Return early if there are no messages
   if (!num_msgs)
@@ -182,62 +182,62 @@ static inline int i2c_bitbang_transfer(uint8_t addr, struct i2c_msg *msgs, uint8
 
   do {
     // Send stop condition from previous message, if needed
-    if (flags & I2C_MSG_STOP) {
-      i2c_stop();
+    if (flags & I2C_BB_MSG_STOP) {
+      i2c_bb_stop();
     }
 
     // Forget old flags, except for start
-    flags &= I2C_MSG_RESTART;
+    flags &= I2C_BB_MSG_RESTART;
 
     // Send start or repeated start condition
-    if (flags & I2C_MSG_RESTART) {
-      i2c_start();
-    } else if (msgs->flags & I2C_MSG_RESTART) {
-      i2c_repeated_start();
+    if (flags & I2C_BB_MSG_RESTART) {
+      i2c_bb_start();
+    } else if (msgs->flags & I2C_BB_MSG_RESTART) {
+      i2c_bb_repeated_start();
     }
 
     // Get flags for new message
     flags |= msgs->flags;
 
     // Send address after start condition
-    if (flags & I2C_MSG_RESTART) {
+    if (flags & I2C_BB_MSG_RESTART) {
       // Adjust address to include read/write bit
-      uint8_t addr_rw = (addr << 1) | (flags & I2C_MSG_READ);
+      uint8_t addr_rw = (addr << 1) | (flags & I2C_BB_MSG_READ);
 
       // Send address
-      int ack = i2c_write_byte(addr_rw);
+      int ack = i2c_bb_write_byte(addr_rw);
 
       // Check for NACK
       if (!ack) {
-        i2c_stop();
-        return -I2C_ERR;
+        i2c_bb_stop();
+        return -I2C_BB_ERR;
       }
 
-      flags &= ~I2C_MSG_RESTART;
+      flags &= ~I2C_BB_MSG_RESTART;
     }
 
     // Transfer data
     uint8_t *buf     = msgs->buf;
     uint8_t *buf_end = buf + msgs->len;
-    if (flags & I2C_MSG_READ) {
+    if (flags & I2C_BB_MSG_READ) {
       // Read
       while (buf < buf_end) {
         // Read byte
-        *buf++ = i2c_read_byte();
+        *buf++ = i2c_bb_read_byte();
 
         // ACK the byte, except for the last one
-        i2c_write_bit(buf == buf_end);
+        i2c_bb_write_bit(buf == buf_end);
       }
     } else {
       // Write
       while (buf < buf_end) {
         // Write byte
-        int ack = i2c_write_byte(*buf++);
+        int ack = i2c_bb_write_byte(*buf++);
 
         // Check for NACK
         if (!ack) {
-          i2c_stop();
-          return -I2C_ERR;
+          i2c_bb_stop();
+          return -I2C_BB_ERR;
         }
       }
     }
@@ -248,12 +248,12 @@ static inline int i2c_bitbang_transfer(uint8_t addr, struct i2c_msg *msgs, uint8
   } while (num_msgs);
 
   // Send final stop condition
-  i2c_stop();
+  i2c_bb_stop();
   return 0;
 }
 
 // Determine the drive mode of the SCL line
-static bool i2c_is_open_drain()
+static bool i2c_bb_is_open_drain()
 {
   // Store gpio directions
   uint8_t dir = PIN_SCL.port->DIR;
@@ -261,7 +261,7 @@ static bool i2c_is_open_drain()
   // Set SCL as input, wait for the line to settle
   gpio_config(PIN_SCL, PORT_PULLUPEN_bm);
   gpio_input(PIN_SCL);
-  i2c_delay(half_delay);
+  i2c_bb_delay(half_delay);
 
   // Read the SCL line multiple times, if it is ever low, it is not open-drain
   bool open_drain = true;
@@ -271,7 +271,7 @@ static bool i2c_is_open_drain()
       break;
     }
 
-    i2c_delay(half_delay);
+    i2c_bb_delay(half_delay);
   }
 
   // Restore original gpio directions
@@ -280,7 +280,7 @@ static bool i2c_is_open_drain()
   return open_drain;
 }
 
-int i2c_configure(uint8_t mode)
+int i2c_bb_configure(uint8_t mode)
 {
   // Set the I2C timings
   /*
@@ -296,15 +296,15 @@ int i2c_configure(uint8_t mode)
       break;
 
     default:
-      return -I2C_ERR;
+      return -I2C_BB_ERR;
   }
   */
 
   // Send a stop condition to ensure the SCL and SDA lines are high
-  i2c_stop();
+  i2c_bb_stop();
 
   // Enable open-drain mode if supported
-  if (i2c_is_open_drain())
+  if (i2c_bb_is_open_drain())
     drive_mode = I2C_DRIVE_OPEN_DRAIN;
 
   // Set the configured flag
@@ -313,11 +313,11 @@ int i2c_configure(uint8_t mode)
   return 0;
 }
 
-int i2c_transfer(uint8_t addr, struct i2c_msg *msgs, uint8_t num_msgs)
+int i2c_bb_transfer(uint8_t addr, struct i2c_bb_msg *msgs, uint8_t num_msgs)
 {
   // Check if the I2C bus is configured
   if (!configured)
-    return -I2C_ERR;
+    return -I2C_BB_ERR;
 
   // Disable interrupts
   //uint32_t level;

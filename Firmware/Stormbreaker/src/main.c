@@ -23,6 +23,8 @@
 
 #define STORM_I2C 0x50
 
+#define HUSB238A_ADDR 0x42
+
 #define ADDR_VER 0x00
 #define ADDR_CHRGCURRENT 0x02
 #define ADDR_PRECURRENT 0x04
@@ -72,22 +74,23 @@ void getEEPROM() {
 }
 
 bool i2c_bitbang_write(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    if (i2c_reg_write_byte(addr, reg, *buf) != 0) {
-      return false;
-    }
-    return true;
+  uint8_t *byte_buf = (uint8_t *)buf;
+  if (i2c_bb_reg_write_byte(addr, reg, byte_buf[0]) != 0) {
+    return false;
+  }
+  return true;
 }
 
 bool i2c_bitbang_read(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
-    if (i2c_reg_read_byte(addr, reg, buf) != 0) {
-      return false;
-    }
-    return true;
+  if (i2c_bb_reg_read_byte(addr, reg, buf) != 0) {
+    return false;
+  }
+  return true;
 }
 
 bq25895_t bq = {
-    .write = i2c_bitbang_write,
-    .read = i2c_bitbang_read
+  .write = i2c_bitbang_write,
+  .read = i2c_bitbang_read,
 };
 
 int handle_register_read(uint8_t reg_addr, uint8_t *value) {
@@ -213,8 +216,11 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
   return 0;
 }
 
-void setupHUSB(float voltage, float current) {
-  
+void setupHUSB(pdVoltage voltage) {
+  if (i2c_bb_detect(HUSB238A_ADDR)) {
+    i2c_bb_reg_write_byte(HUSB238A_ADDR, 0x08, (voltage << 4));
+    i2c_bb_reg_write_byte(HUSB238A_ADDR, 0x09, 0b00001);
+  }
 }
 
 bool setup() {
@@ -258,11 +264,13 @@ bool setup() {
 
   led_init();
 
-  i2c_configure(I2C_MODE_FAST); // Speed isn't actually configured here, hardcoded to I2C_MODE_FAST
+  i2c_bb_configure(I2C_BB_MODE_FAST); // Speed isn't actually configured here, hardcoded to I2C_MODE_FAST
+  setupHUSB(PD_VOLTAGE_12V);
   if (!bq25895_is_present(&bq)) {
     return false;
   }
   setupBQ();
+  
   return true;
 }
 
@@ -543,7 +551,7 @@ void battChargeStatus() {
     if ((battVolt >= battChrgLevels[i]) && (battVolt < battChrgLevels[i+1])) {
       tmp = i + ((battVolt - battChrgLevels[i]) / (battChrgLevels[i+1] - battChrgLevels[i]));
       tmp *= 0x20;
-      battCharge = (int)tmp;
+      battCharge = (uint8_t)tmp;
       return;
     }
   }
