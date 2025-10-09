@@ -8,16 +8,16 @@
 
 #include <util/delay.h>
 
-#include "aled.h"       // Include several of loopj's useful utility libraries
-#include "i2c_target.h" // Some of these have been partially modified to suit my needs
+#include "aled.h"         // Include several of loopj's useful utility libraries
+#include "i2c_target.h"   // Partially modified to suit Stormbreaker
 #include "button.h"
 #include "console.h"
 #include "rtc.h"
 #include "gpio.h"
 
-#include "i2c_bitbang.h"
+#include "i2c_bitbang.h"  // Based on i2c_wii.c from Thundervolt
 
-#include "bq25895.h"    // Based on jefflongo's BQ24292i driver
+#include "bq25895.h"      // Based on jefflongo's BQ24292i driver
 
 #define BAUD_RATE 115200
 
@@ -25,12 +25,12 @@
 
 #define HUSB238A_ADDR 0x42
 
-#define ADDR_VER 0x00
-#define ADDR_CHRGCURRENT 0x02
-#define ADDR_PRECURRENT 0x04
-#define ADDR_TERMCURRENT 0x06
-#define ADDR_CHRGVOLTAGE 0x08
-#define ADDR_FANSPEED 0x0A
+#define ADDR_VER          0x00
+#define ADDR_CHRGCURRENT  0x02
+#define ADDR_PRECURRENT   0x04
+#define ADDR_TERMCURRENT  0x06
+#define ADDR_CHRGVOLTAGE  0x08
+#define ADDR_FANSPEED     0x0A
 
 const uint8_t ver = 0x03;   // v0.3 (ver / 10)
 
@@ -45,14 +45,14 @@ uint16_t battVolt = 3700;
 const uint16_t minBattVolt  = 2700;
 const uint16_t maxInCurrent = 3250;
 const uint16_t battChrgLevels[9] = {2684, 2864, 3064, 3264, 3444, 3644, 3824, 4024, 4204};
-bq25895_fault_t pwrErrorStatus = 0x00;
-bq25895_charge_state_t chargeStatus = 0x00;
+bq25895_fault_t pwrErrorStatus = BQ_FAULT_NONE;
+bq25895_charge_state_t chargeStatus = BQ_STATE_NOT_CHARGING;
 
-uint16_t chrgCurrent = 4096;  // 4096mA
-uint16_t preCurrent = 128;    // 128mA
-uint16_t termCurrent = 256;   // 256mA
-uint16_t chrgVoltage = 4208;  // 4.208V
-uint8_t fanSpeed = 0xFF;      // 100% speed
+uint16_t chrgCurrent  = 4096;   // 4096mA
+uint16_t preCurrent   = 128;    // 128mA
+uint16_t termCurrent  = 256;    // 256mA
+uint16_t chrgVoltage  = 4208;   // 4.208V
+uint8_t fanSpeed      = 0xFF;   // 100% speed
 
 const bool ilimEnabled = false;
 
@@ -73,6 +73,7 @@ void getEEPROM() {
   }
 }
 
+// Bitbanged I2C write
 bool i2c_bitbang_write(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
   uint8_t *byte_buf = (uint8_t *)buf;
   if (i2c_bb_reg_write_byte(addr, reg, byte_buf[0]) != 0) {
@@ -80,7 +81,7 @@ bool i2c_bitbang_write(uint8_t addr, uint8_t reg, void const* buf, size_t len, v
   }
   return true;
 }
-
+// Bitbanged I2C read
 bool i2c_bitbang_read(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context) {
   if (i2c_bb_reg_read_byte(addr, reg, buf) != 0) {
     return false;
@@ -93,6 +94,7 @@ bq25895_t bq = {
   .read = i2c_bitbang_read,
 };
 
+// Hardware I2C read
 int handle_register_read(uint8_t reg_addr, uint8_t *value) {
   switch (reg_addr) {
     case 0x00: // Get version
@@ -137,7 +139,7 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
       *value = chrgVoltage & 0xFF;
     break;
     case 0x17:
-      *value = chrgVoltage  >> 8;
+      *value = chrgVoltage >> 8;
     break;
 
     case 0x18:
@@ -165,6 +167,7 @@ int handle_register_read(uint8_t reg_addr, uint8_t *value) {
   return 0;
 }
 
+// Hardware I2C write
 int handle_register_write(uint8_t reg_addr, uint8_t value) {
   switch (reg_addr) {
     case 0x02:
@@ -217,14 +220,12 @@ int handle_register_write(uint8_t reg_addr, uint8_t value) {
 }
 
 void setupHUSB(pdVoltage voltage) {
-  if (i2c_bb_detect(HUSB238A_ADDR)) {
-    i2c_bb_reg_write_byte(HUSB238A_ADDR, 0x08, (voltage << 4));
-    i2c_bb_reg_write_byte(HUSB238A_ADDR, 0x09, 0b00001);
-  }
+  i2c_bb_reg_write_byte(HUSB238A_ADDR, 0x08, (voltage << 4));
+  i2c_bb_reg_write_byte(HUSB238A_ADDR, 0x09, 0b00001);
 }
 
 bool setup() {
-  button_init(&pwr_button, &BUTTON.port, BUTTON.num, NULL, buttonHold);
+  button_init(&pwr_button, BUTTON.port, BUTTON.num, NULL, buttonHeld);
   rtc_init();
   console_init(BAUD_RATE);
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // Set sleep to low power mode
@@ -254,21 +255,20 @@ bool setup() {
 
   gpio_output(FAN);
   initFan();
+  setFan(false, 0x00); // Turn off fan initially
 
   gpio_set_high(PWR_ON); // Makes sure console is off
   gpio_output(PWR_ON);
-  
-  setFan(false, 0x00); // Turn off fan initially
 
-  i2c_target_init(STORM_I2C, handle_register_read, handle_register_write);
+  i2c_target_init(STORM_I2C, handle_register_read, handle_register_write);  // Init hardware I2C
 
   led_init();
 
   i2c_bb_configure(I2C_BB_MODE_FAST); // Speed isn't actually configured here, hardcoded to I2C_MODE_FAST
-  setupHUSB(PD_VOLTAGE_12V);
-  if (!bq25895_is_present(&bq)) {
+  if (!bq25895_is_present(&bq) || !i2c_bb_detect(HUSB238A_ADDR)) {  // Check that both the HUSB and BQ are present on the bus
     return false;
   }
+  setupHUSB(PD_VOLTAGE_12V);
   setupBQ();
   
   return true;
@@ -295,22 +295,22 @@ void overTemp() {
   setFan(true, 0xff); // Fan at full-speed, to cool down console
   powerLED(5);
   isOverTemp = true;
-  _delay_ms(120 * 1000); // 2 minutes to cool down
+  _delay_ms(2 * 60 * 1000); // 2 minutes to cool down
   isOverTemp = false;
   setFan(false, 0x00); // disable cooling fan
 }
 
 
-void buttonHold() {
+void buttonHeld() {
   if (isPowered) {
-    triggerShutdown(); // Is it on? Turn it off.
+    triggerShutdown(); // Is console on? Turn it off.
   }
   else {
     getBattVoltage();
     if (((battVolt > minBattVolt) || isCharging) && !isOverTemp && (pwrErrorStatus == BQ_FAULT_NONE)) { 
     // Check that either the battery is charged enough, or console is charging, 
-    // AND make sure there's no over-temp issues
-    // AND make sure there's no power errors
+    // AND make sure there are no over-temp issues
+    // AND make sure there are no power errors
       consoleOn(); // Battery is charged enough or currently charging, turn on console
     }
     else {
@@ -325,7 +325,7 @@ void buttonHold() {
 void triggerShutdown() {
   if (!triggeredSoftShutdown && isPowered) {
     gpio_set_high(SOFT_PWR); // Trigger the soft shutdown sequence on the Wii
-    _delay_ms(30);
+    _delay_ms(50);
     gpio_set_low(SOFT_PWR);
     powerLED(0);
     triggeredSoftShutdown = true;
@@ -354,6 +354,7 @@ void chargingStatus() {
   bq25895_check_faults(&bq, &pwrErrorStatus);
   if (pwrErrorStatus != BQ_FAULT_NONE) { // Uh oh, *something* is wrong
     triggerShutdown();
+    powerLED(5);
     if (pwrErrorStatus & BQ_FAULT_THERM) { // oh jeez stuff is hot this is really bad
       overTemp();
       return;
@@ -386,19 +387,19 @@ void chargingStatus() {
 }
 
 void initFan() {
-  TCA0.SINGLE.PER = 255; // 8-bit resolution should be enough
-  TCA0.SINGLE.CMP2 = 128; // set duty cycle to 50% <-- adjust for different speed
+  TCA0.SINGLE.PER = 0xFF; // 8-bit resolution should be enough
+  TCA0.SINGLE.CMP2 = 0x80; // set duty cycle to 50% <-- adjust for different speed
   TCA0.SINGLE.CTRLB = TCA_SINGLE_WGMODE_SINGLESLOPE_gc | TCA_SINGLE_CMP2EN_bm;
   TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV1_gc | TCA_SINGLE_ENABLE_bm;
 }
 
 void setFan(bool active, uint8_t speed) {
   if (active && speed > 0x00) {
-    TCA0.SINGLE.CTRLA = TCA0.SINGLE.CTRLA | 0x01;
+    TCA0.SINGLE.CTRLA = TCA0.SINGLE.CTRLA | 0b00000001;
     TCA0.SINGLE.CMP2 = speed;
   }
   else {
-    TCA0.SINGLE.CTRLA = TCA0.SINGLE.CTRLA & ~(0x01);
+    TCA0.SINGLE.CTRLA = TCA0.SINGLE.CTRLA & ~(0b00000001);
   }
 }
 
@@ -481,6 +482,7 @@ void consoleOff() {
 }
 
 void enableShipping() {
+  triggerShutdown();
   bq25895_set_batfet_enabled(&bq, false);
 }
 
@@ -538,7 +540,7 @@ void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled) {
 
 void battChargeStatus() {
   chargingStatus();
-  if (chargeStatus == 0b11) { // Fully-charged
+  if (chargeStatus == BQ_STATE_TERMINATED) { // Fully-charged
     battCharge = 0xff;
     return;
   }
@@ -598,21 +600,21 @@ int main() {
 ISR(PORTA_PORT_vect) {
   rtc_init();
   button_update(&pwr_button, rtc_millis());
-  if (gpio_read_intflag(TEMP_ALERT)) {
+  if (gpio_read_intflag(TEMP_ALERT) || !gpio_read(TEMP_ALERT)) {
     overTemp();
   }
   PORTA.INTFLAGS = 0xFF;
 }
 
 ISR(PORTB_PORT_vect) {
-  if (gpio_read_intflag(SOFT_SHUT)) {
+  if (gpio_read_intflag(SOFT_SHUT) || gpio_read(SOFT_SHUT)) {
     softShutdown();
   }
   PORTB.INTFLAGS = 0xFF;
 }
 
 ISR(PORTC_PORT_vect) {
-  if (gpio_read_intflag(BQ_INT)) {
+  if (gpio_read_intflag(BQ_INT) || !gpio_read(BQ_INT)) {
     chargingStatus();
   }
   PORTC.INTFLAGS = 0xFF;

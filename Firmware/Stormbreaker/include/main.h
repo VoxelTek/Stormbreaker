@@ -39,10 +39,9 @@ int main();
 bool setup();
 void loop();
 
-//int I2CWriteRegister(BBI2C *pI2C, unsigned char iAddr, unsigned char reg, unsigned char value);
 void getEEPROM();
 void overTemp();
-void buttonHold();
+void buttonHeld();
 void triggerShutdown();
 void softShutdown();
 void chargingStatus();
@@ -56,10 +55,10 @@ void setupBQ();
 void writeToEEPROM();
 void applyChanges();
 void getBattVoltage();
-int handle_register_read(uint8_t reg_addr, uint8_t *value);
-int handle_register_write(uint8_t reg_addr, uint8_t value);
-bool i2c_bitbang_write(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context);
-bool i2c_bitbang_read(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context);
+int handle_register_read(uint8_t reg_addr, uint8_t *value);     // Hardware I2C
+int handle_register_write(uint8_t reg_addr, uint8_t value);     // Hardware I2C
+bool i2c_bitbang_write(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context);      // Bitbanged I2C
+bool i2c_bitbang_read(uint8_t addr, uint8_t reg, void const* buf, size_t len, void* context);       // Bitbanged I2C
 void setLED(uint8_t r, uint8_t g, uint8_t b, float bright, bool enabled);
 void battChargeStatus();
 void monitorBatt();
