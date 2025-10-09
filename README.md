@@ -2,7 +2,7 @@
 ### ~~A ripoff of YveltalGriffin's Mjolnir~~ 
 ### A companion board for [Thundervolt](https://github.com/mackieks/thundervolt)
 
-<img width="1918" height="921" alt="Stormbreaker PCB front" src="https://github.com/user-attachments/assets/423c1cf4-0417-421a-ae6f-dcc3a9eca25d" />
+<img width="1800" height="786" alt="Stormbreaker PCB front" src="https://github.com/user-attachments/assets/6478f7ef-c075-414a-8a81-877ea946863f" />
 
 ## What is this?
 Stormbreaker is a multifunction circuit board intended to be used alongside [Thundervolt](https://github.com/mackieks/thundervolt) in Wii portables. It handles battery charging and monitoring, power switching, storage interfacing, and a bit more. See the full list of features here.
@@ -43,3 +43,6 @@ Functionality is largely split between the 4 ICs.
 #### U4 - HUSB238A
 - PD sink controller
 - Uses USB-C PD to request higher voltages (up to 12V) to allow for faster charging with lower current draw
+
+
+![GIF of rotating Stormbreaker PCB](https://github.com/user-attachments/assets/6520365d-76c0-4451-a20c-6fa46710e0ff)
