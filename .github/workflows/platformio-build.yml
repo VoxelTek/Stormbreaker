@@ -3,6 +3,13 @@ name: PlatformIO CI
 on: [push]
 
 jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        submodules: 'true'
   build:
     runs-on: ubuntu-latest
 
