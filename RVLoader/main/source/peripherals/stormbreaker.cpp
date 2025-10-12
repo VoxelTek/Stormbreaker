@@ -607,7 +607,7 @@ namespace STORMBREAKER {
         lastTime = gettime();
 
         u16 tmp = i2c_read16(TMP1075_ADDR, CMD_NTC, &error) >> 4;
-        ret = (tmp & 0b011111111111) / 16;
+        ret = (tmp & 0b011111111111) / 16.0f;
         if (tmp & 0b100000000000) {
             ret -= 128.0f;
         }
