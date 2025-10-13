@@ -4,6 +4,9 @@
 
 <img width="1800" height="786" alt="Stormbreaker PCB front" src="https://github.com/user-attachments/assets/6478f7ef-c075-414a-8a81-877ea946863f" />
 
+[![PlatformIO CI](https://github.com/VoxelTek/Stormbreaker/actions/workflows/platformio-build.yml/badge.svg)](https://github.com/VoxelTek/Stormbreaker/actions/workflows/platformio-build.yml)
+[![DOL](https://github.com/VoxelTek/RVLoader_Stormbreaker/actions/workflows/build.yml/badge.svg)](https://github.com/VoxelTek/RVLoader_Stormbreaker/actions/workflows/build.yml)
+
 ## What is this?
 Stormbreaker is a multifunction circuit board intended to be used alongside [Thundervolt](https://github.com/mackieks/thundervolt) in Wii portables. It handles battery charging and monitoring, power switching, storage interfacing, and a bit more. See the full list of features here.
 
