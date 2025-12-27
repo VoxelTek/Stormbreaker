@@ -3,9 +3,9 @@
     "GenerationSoftware": {
       "Vendor": "KiCad",
       "Application": "Pcbnew",
-      "Version": "9.0.1-rc2-202503292320~1d443ca74c~ubuntu24.04.1"
+      "Version": "9.0.6-9.0.6~ubuntu25.04.1"
     },
-    "CreationDate": "2025-04-04T23:21:44+10:00"
+    "CreationDate": "2025-12-27T12:18:54+10:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
@@ -15,7 +15,7 @@
     },
     "Size": {
       "X": 50.3,
-      "Y": 21.05
+      "Y": 21.55
     },
     "LayerNumber": 4,
     "BoardThickness": 0.8,
@@ -36,6 +36,7 @@
       "PadToPad": 0.0,
       "PadToTrack": 0.0,
       "TrackToTrack": 0.0889,
+      "MinLineWidth": 0.5,
       "TrackToRegion": 0.2,
       "RegionToRegion": 0.2
     }
@@ -48,12 +49,12 @@
     },
     {
       "Path": "Stormbreaker-In1_Cu.gbr",
-      "FileFunction": "Copper,L5,Inr",
+      "FileFunction": "Copper,L2,Inr",
       "FilePolarity": "Positive"
     },
     {
       "Path": "Stormbreaker-In2_Cu.gbr",
-      "FileFunction": "Copper,L7,Inr",
+      "FileFunction": "Copper,L3,Inr",
       "FilePolarity": "Positive"
     },
     {
