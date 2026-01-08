@@ -12936,15 +12936,15 @@
 		(fields_autoplaced yes)
 		(uuid "dac59f4b-875a-4463-bf7a-f87fbaa4d3d1")
 		(property "Reference" "U2"
-			(at 96.52 146.05 0)
+			(at 96.52 144.78 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 			)
 		)
-		(property "Value" "~"
-			(at 96.52 148.59 0)
+		(property "Value" "GL835"
+			(at 96.52 147.32 0)
 			(effects
 				(font
 					(size 1.27 1.27)
