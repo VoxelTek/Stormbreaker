@@ -28,7 +28,7 @@ typedef int (*read_register_fn)(uint8_t reg_addr, uint8_t *value);
  */
 typedef int (*write_register_fn)(uint8_t reg_addr, uint8_t value);
 
-/*
+/**
  * Initialize as an I2C target device, with the provided access functions
  *
  * @param dev_addr The 7-bit I2C address of the device
